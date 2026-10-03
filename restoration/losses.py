@@ -29,7 +29,9 @@ def ssim(x: torch.Tensor, y: torch.Tensor, window: int = 11, sigma: float = 1.5,
 
 
 def psnr(x: torch.Tensor, y: torch.Tensor, per_sample: bool = True) -> torch.Tensor:
-    mse = ((x - y) ** 2).flatten(1).mean(1).clamp_min(1e-10)
+    """PSNR in dB for images in [0,1]. MSE is floored at 1e-5, i.e. PSNR is capped at 50 dB, so that an exact
+    identity (e.g. the clean bypass) does not produce an infinite / meaningless 100 dB that would dominate averages."""
+    mse = ((x - y) ** 2).flatten(1).mean(1).clamp_min(1e-5)
     p = 10 * torch.log10(1.0 / mse)
     return p if per_sample else p.mean()
 
