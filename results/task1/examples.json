@@ -1,0 +1,50 @@
+[
+  {
+    "index": 32140,
+    "group": "clean"
+  },
+  {
+    "index": 16311,
+    "group": "salt_pepper/low"
+  },
+  {
+    "index": 8494,
+    "group": "salt_pepper/medium"
+  },
+  {
+    "index": 8027,
+    "group": "salt_pepper/high"
+  },
+  {
+    "index": 14042,
+    "group": "blur/low"
+  },
+  {
+    "index": 32885,
+    "group": "blur/medium"
+  },
+  {
+    "index": 33068,
+    "group": "blur/high"
+  },
+  {
+    "index": 18013,
+    "group": "occlusion/low"
+  },
+  {
+    "index": 946,
+    "group": "occlusion/medium"
+  },
+  {
+    "index": 36219,
+    "group": "occlusion/high"
+  },
+  {
+    "index": 31208,
+    "group": "random blur"
+  },
+  {
+    "index": 23370,
+    "group": "random clean"
+  }
+]

@@ -140,10 +140,13 @@ def health():
 
 
 @app.get("/api/samples")
-def samples():
-    """Clean sample images (base64) that can be picked in the UI instead of uploading."""
+def samples(kind: str = "pets"):
+    """Sample images (base64) that can be picked in the UI instead of uploading: pets (Tasks 1-3) or faces (Task 4)."""
+    if kind not in ("pets", "faces"):
+        raise HTTPException(422, "kind must be 'pets' or 'faces'.")
+    folder = SAMPLE_DIR if kind == "pets" else SAMPLE_DIR / "faces"
     out = []
-    for p in sorted(SAMPLE_DIR.glob("*.jpg")):
+    for p in sorted(folder.glob("*.jpg")):
         out.append({"name": p.stem, "image": "data:image/jpeg;base64," + base64.b64encode(p.read_bytes()).decode()})
     return out
 

@@ -36,7 +36,7 @@ export default function Sketch() {
         <aside className="card h-fit space-y-6 p-5">
           <div>
             <div className="label mb-3">1 · Photograph</div>
-            <ImagePicker value={image} onChange={setImage} webcam />
+            <ImagePicker value={image} onChange={setImage} webcam kind="faces" />
           </div>
           <div>
             <div className="label mb-3">2 · Sketch style</div>

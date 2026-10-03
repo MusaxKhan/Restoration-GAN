@@ -4,7 +4,7 @@ import { dataUrlToFile, getSamples } from '../api.js'
 const MAX_MB = 10
 
 /** Upload (click / drag & drop), choose a clean sample, or (optionally) capture from the webcam. */
-export default function ImagePicker({ value, onChange, webcam = false }) {
+export default function ImagePicker({ value, onChange, webcam = false, kind = 'pets' }) {
   const [samples, setSamples] = useState([])
   const [error, setError] = useState('')
   const [cam, setCam] = useState(false)
@@ -12,7 +12,7 @@ export default function ImagePicker({ value, onChange, webcam = false }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
 
-  useEffect(() => { getSamples().then(setSamples).catch(() => {}) }, [])
+  useEffect(() => { getSamples(kind).then(setSamples).catch(() => {}) }, [kind])
   useEffect(() => () => stopCam(), [])
 
   const take = (file, label) => {

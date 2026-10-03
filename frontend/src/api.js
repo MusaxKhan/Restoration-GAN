@@ -7,7 +7,7 @@ async function handle(r) {
 }
 
 export const getHealth = () => fetch('/api/health').then(handle)
-export const getSamples = () => fetch('/api/samples').then(handle)
+export const getSamples = (kind = 'pets') => fetch(`/api/samples?kind=${kind}`).then(handle)
 export const postForm = (path, form) => fetch(path, { method: 'POST', body: form }).then(handle)
 
 export async function dataUrlToFile(dataUrl, name) {
