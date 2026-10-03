@@ -55,7 +55,8 @@ def objective_value(l1: float, ssim_v: float) -> float:
 
 
 @torch.no_grad()
-def evaluate_restoration(fn, loader, device, max_batches: int | None = None) -> dict:
+def evaluate_restoration(fn, loader, device, max_batches: int | None = None, return_rows: bool = False,
+                        needs_labels: bool = False):
     """Run `fn(corrupted)->restored` over a manifest-driven loader and aggregate PSNR/SSIM/L1.
 
     Returns {"overall", "by_type", "by_type_level"} for the model output and "input_*" baselines
@@ -66,7 +67,7 @@ def evaluate_restoration(fn, loader, device, max_batches: int | None = None) -> 
             break
         x, y = x.to(device), y.to(device)
         with autocast(device):
-            out = fn(x)
+            out = fn(x, lab.to(device)) if needs_labels else fn(x)
         out = out.float().clamp(0, 1)
         l1 = (out - y).abs().flatten(1).mean(1)
         rows.append(torch.stack([psnr(out, y), ssim(out, y, per_sample=True), l1,
@@ -92,7 +93,7 @@ def evaluate_restoration(fn, loader, device, max_batches: int | None = None) -> 
                     ml = m & (lev == li)
                     if ml.any():
                         res["by_type_level"][f"{tn}/{ln}"] = agg(ml)
-    return res
+    return (res, r) if return_rows else res
 
 
 # ------------------------------------------------------------------ figures
