@@ -1,0 +1,6 @@
+*
+!.gitignore
+!.gitkeep
+!README.md
+!SOURCE.txt
+!onnx_verification.json

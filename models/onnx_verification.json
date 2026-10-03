@@ -1,0 +1,59 @@
+{
+  "universal_ae": {
+    "max_abs_diff": 7.152557373046875e-07,
+    "per_output": [
+      7.152557373046875e-07
+    ],
+    "passed": true,
+    "size_mb": 9.6
+  },
+  "classifier": {
+    "max_abs_diff": 1.1920928955078125e-07,
+    "per_output": [
+      1.1920928955078125e-07
+    ],
+    "passed": true,
+    "size_mb": 21.2
+  },
+  "specialist_salt": {
+    "max_abs_diff": 8.046627044677734e-07,
+    "per_output": [
+      8.046627044677734e-07
+    ],
+    "passed": true,
+    "size_mb": 9.6
+  },
+  "specialist_blur": {
+    "max_abs_diff": 7.003545761108398e-07,
+    "per_output": [
+      7.003545761108398e-07
+    ],
+    "passed": true,
+    "size_mb": 9.6
+  },
+  "specialist_occ": {
+    "max_abs_diff": 5.364418029785156e-07,
+    "per_output": [
+      5.364418029785156e-07
+    ],
+    "passed": true,
+    "size_mb": 9.6
+  },
+  "soft_moe": {
+    "max_abs_diff": 4.76837158203125e-07,
+    "per_output": [
+      4.76837158203125e-07,
+      1.7881393432617188e-07
+    ],
+    "passed": true,
+    "size_mb": 50.0
+  },
+  "sketch_generator": {
+    "max_abs_diff": 3.874301910400391e-06,
+    "per_output": [
+      3.874301910400391e-06
+    ],
+    "passed": true,
+    "size_mb": 168.5
+  }
+}
