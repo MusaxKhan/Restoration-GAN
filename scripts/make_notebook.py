@@ -26,13 +26,17 @@ code("""
 from google.colab import drive
 drive.mount('/content/drive')
 import os
-BASE = '/content/drive/MyDrive/genai_a1'
-os.makedirs(BASE, exist_ok=True)
+DRIVE = '/content/drive/MyDrive/genai_a1'      # persistent (Google Drive): FS2K.zip + synced results
+BASE = '/content/work'                          # fast local disk used while training (SQLite does not like Drive)
+os.makedirs(DRIVE, exist_ok=True); os.makedirs(BASE, exist_ok=True)
+os.environ['DRIVE'] = DRIVE
 os.environ['BASE'] = BASE
 os.environ['DATA_ROOT'] = '/content/data'
 os.environ['MLFLOW_TRACKING_URI'] = f'sqlite:///{BASE}/mlflow.db'
 os.environ['MLFLOW_ARTIFACT_ROOT'] = f'{BASE}/mlartifacts'
 os.environ['MLFLOW_DISABLE_AGENT_HINT'] = '1'
+# after a session restart: restore everything synced earlier
+!rsync -a $DRIVE/work/ $BASE/ 2>/dev/null || true
 """)
 code("""
 %%bash
@@ -48,7 +52,7 @@ code("""
 import os, subprocess
 os.makedirs('/content/data', exist_ok=True)
 if not os.path.exists('/content/data/FS2K'):
-    subprocess.run(['unzip', '-q', f'{BASE}/FS2K.zip', '-d', '/content/data'], check=True)
+    subprocess.run(['unzip', '-q', f'{DRIVE}/FS2K.zip', '-d', '/content/data'], check=True)
 print(os.listdir('/content/data/FS2K'))
 """)
 code("""
@@ -70,12 +74,15 @@ md("""
 """)
 code("""
 !python -m restoration.optuna_ae --mode universal --trials 20 --epochs 6 --subset-train 1500 --out $BASE/optuna --config-out $BASE/configs/ae_universal_best.json
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.train_ae --task universal --config $BASE/configs/ae_universal_best.json --out $BASE/runs/task1 --epochs 60 --mlflow-experiment task1_universal_ae --resume
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.evaluate_task1 --ckpt $BASE/runs/task1/best.pt --out $BASE/results/task1
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 
 md("""
@@ -83,19 +90,24 @@ md("""
 """)
 code("""
 !python -m restoration.optuna_classifier --trials 20 --epochs 5 --subset-train 1500 --out $BASE/optuna --config-out $BASE/configs/cls_best.json
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.train_classifier --config $BASE/configs/cls_best.json --out $BASE/runs/task2_cls --epochs 30 --mlflow-experiment task2_classifier --resume
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.optuna_ae --mode specialist --trials 12 --epochs 6 --subset-train 1500 --out $BASE/optuna --config-out $BASE/configs/ae_specialist_best.json
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 for t in ['salt', 'blur', 'occ']:
     !python -m restoration.train_ae --task {t} --config $BASE/configs/ae_specialist_best.json --out $BASE/runs/task2_{t} --epochs 60 --mlflow-experiment task2_specialist_{t} --resume
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.evaluate_task2 --cls $BASE/runs/task2_cls/best.pt --salt $BASE/runs/task2_salt/best.pt --blur $BASE/runs/task2_blur/best.pt --occ $BASE/runs/task2_occ/best.pt --out $BASE/results/task2
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 
 md("""
@@ -103,12 +115,15 @@ md("""
 """)
 code("""
 !python -m restoration.optuna_moe --cls $BASE/runs/task2_cls/best.pt --salt $BASE/runs/task2_salt/best.pt --blur $BASE/runs/task2_blur/best.pt --occ $BASE/runs/task2_occ/best.pt --trials 15 --epochs 4 --warmup-epochs 1 --subset-train 1500 --out $BASE/optuna --config-out $BASE/configs/moe_best.json
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.train_moe --cls $BASE/runs/task2_cls/best.pt --salt $BASE/runs/task2_salt/best.pt --blur $BASE/runs/task2_blur/best.pt --occ $BASE/runs/task2_occ/best.pt --config $BASE/configs/moe_best.json --out $BASE/runs/task3 --epochs 20 --mlflow-experiment task3_soft_moe
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.evaluate_task3 --ckpt $BASE/runs/task3/best.pt --out $BASE/results/task3
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 
 md("""
@@ -116,12 +131,15 @@ md("""
 """)
 code("""
 !python -m restoration.optuna_gan --trials 12 --epochs 10 --out $BASE/optuna --config-out $BASE/configs/gan_best.json
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.train_gan --config $BASE/configs/gan_best.json --out $BASE/runs/task4 --epochs 150 --mlflow-experiment task4_face_to_sketch --resume
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 code("""
 !python -m restoration.evaluate_task4 --ckpt $BASE/runs/task4/best.pt --out $BASE/results/task4
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 
 md("""
@@ -129,6 +147,7 @@ md("""
 """)
 code("""
 !python -m restoration.export_onnx --universal $BASE/runs/task1/best.pt --cls $BASE/runs/task2_cls/best.pt --salt $BASE/runs/task2_salt/best.pt --blur $BASE/runs/task2_blur/best.pt --occ $BASE/runs/task2_occ/best.pt --moe $BASE/runs/task3/best.pt --gan $BASE/runs/task4/best.pt --out $BASE/models
+!rsync -a --exclude "mlartifacts/**/best.pt" $BASE/ $DRIVE/work/
 """)
 
 md("""
@@ -136,7 +155,8 @@ md("""
 """)
 code("""
 !cd $BASE && rm -f results_bundle.zip && zip -rq results_bundle.zip configs results optuna mlflow.db models/onnx_verification.json -x "*.pt"
-!ls -la $BASE
+!cp $BASE/results_bundle.zip $DRIVE/ && cp -r $BASE/models $DRIVE/models_onnx
+!ls -la $DRIVE
 """)
 
 nb = {"cells": cells, "metadata": {"accelerator": "GPU", "colab": {"provenance": []},
