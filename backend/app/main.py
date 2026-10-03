@@ -121,6 +121,10 @@ def settings_of(mode, spec, level, seed):
     return d
 
 
+def error_map(clean, restored):
+    return png_b64(np.clip(np.abs(restored - clean) * 4, 0, 1)) if clean is not None else None
+
+
 def metrics(clean, restored, corrupted):
     if clean is None:
         return None
@@ -153,7 +157,7 @@ async def universal(file: UploadFile = File(...), mode: str = Form("corrupt"), c
     restored = restored[0].transpose(1, 2, 0)
     return {"task": "universal", "input": png_b64(x), "restored": png_b64(restored),
             "clean": png_b64(clean) if clean is not None else None,
-            "error_map": png_b64(np.clip(np.abs(restored - clean) * 4, 0, 1)) if clean is not None else None,
+            "error_map": error_map(clean, restored),
             "settings": settings_of(mode, spec, level, seed), "inference_ms": round(ms, 2),
             "metrics": metrics(clean, restored, x)}
 
@@ -173,7 +177,7 @@ async def hard_route(file: UploadFile = File(...), mode: str = Form("corrupt"), 
         (out,), ms_exp = run(session(EXPERT_KEYS[route]), {"image": inp})
         restored, expert = out[0].transpose(1, 2, 0), EXPERT_NAMES[route]
     return {"task": "hard_route", "input": png_b64(x), "restored": png_b64(restored),
-            "clean": png_b64(clean) if clean is not None else None,
+            "clean": png_b64(clean) if clean is not None else None, "error_map": error_map(clean, restored),
             "probabilities": {n: round(float(p), 4) for n, p in zip(C.CLASS_NAMES, probs)},
             "predicted": C.CLASS_NAMES[route], "selected_expert": expert,
             "true_condition": C.CLASS_NAMES[spec["type"]] if mode == "corrupt" else None,
@@ -192,7 +196,7 @@ async def soft_moe(file: UploadFile = File(...), mode: str = Form("corrupt"), co
     names = ["Identity (clean)", "Salt-and-pepper expert", "Blur expert", "Occlusion expert"]
     order = np.argsort(-w)
     return {"task": "soft_moe", "input": png_b64(x), "restored": png_b64(restored),
-            "clean": png_b64(clean) if clean is not None else None,
+            "clean": png_b64(clean) if clean is not None else None, "error_map": error_map(clean, restored),
             "weights": {n: round(float(v), 4) for n, v in zip(names, w)},
             "dominant_branch": names[int(order[0])], "contributions_ranked": [names[i] for i in order if w[i] > 0.05],
             "settings": settings_of(mode, spec, level, seed), "inference_ms": round(ms, 2),
