@@ -1,5 +1,5 @@
 # datasets and large artifacts
-data/
+/data/
 mlruns/
 checkpoints/
 *.zip
