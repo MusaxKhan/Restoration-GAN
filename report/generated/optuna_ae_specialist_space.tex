@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Optuna search space: Task 2 specialist autoencoders (shared search).}
+\label{tab:optuna_ae_specialist_space}
+\footnotesize
+\begin{tabular}{ll}
+\toprule
+Hyper-parameter & Distribution \\
+\midrule
+lr & loguniform[1e-4, 3e-3] \\
+batch\_size & categorical{32, 64, 128} \\
+latent\_type & categorical{dense, spatial} \\
+latent\_dim (dense) & categorical{128, 256, 512, 1024} \\
+latent\_ch (spatial; dim = 64 x latent\_ch) & categorical{4, 8, 16, 32} \\
+base\_ch & categorical{16, 32, 48, 64} \\
+alpha & uniform[0.5, 0.95] \\
+(fixed) dropout & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{table}

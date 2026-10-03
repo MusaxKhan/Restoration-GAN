@@ -1,0 +1,247 @@
+\section{Experiments and Results}
+All numbers in this section are measured on the \emph{official test sets} (Pet test: 3{,}669 images $\times$ 10 conditions $=$ 36{,}690 manifest entries; FS2K test: 1{,}046 pairs) with the final selected models, and are produced by the evaluation scripts in the repository; the tables are generated directly from the result files (\texttt{results/}). Hyper-parameter searches used reduced budgets (Section~\ref{sec:limits}); the final models were retrained for the full schedule with the selected configuration. Training ran on a Colab T4 GPU. ``Input'' denotes the unrestored corrupted image compared with the clean target (a baseline for how much the model improves the image). PSNR is in dB.
+
+\subsection{Task 1: Universal Autoencoder}
+\label{sec:t1}
+\textbf{Optuna.} 24 trials (15 completed, 9 pruned by the median pruner) searched learning rate, batch size, bottleneck type and size, encoder channels, dropout and $\alpha$ (Tables~\ref{tab:optuna_ae_universal_space} and \ref{tab:optuna_ae_universal_best}). The first search, which only contained a \emph{dense} (fully-connected) latent vector of 128--1024 numbers, converged to a best validation objective of 0.735 and produced very blurry reconstructions (test: 18.37\,dB, SSIM 0.454; Fig.~\ref{fig:t1dense}). Inspecting those outputs showed that a global fully-connected code discards spatial layout, so a second search added a \emph{spatial} bottleneck (a $1\times1$-convolutional latent map of $64\cdot c_{\mathrm{lat}}$ numbers that keeps the $8\times8$ layout; still no skip connections). Optuna selected the spatial type (best objective 0.506) with $c_{\mathrm{lat}}=32$, i.e.\ a 2{,}048-number latent, a $24\times$ compression of the 49{,}152 input values, and $\alpha=0.554$ (the initial guess 0.8 was not optimal). The dense baseline is kept in the repository (\texttt{results/dense\_baseline}) and used as an ablation.
+
+\input{generated/optuna_ae_universal_space}
+\input{generated/optuna_ae_universal_best}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{curves_task1.png}
+\caption{Task 1 final training: training loss and validation PSNR/SSIM per epoch (from MLflow).}
+\label{fig:curves1}
+\end{figure*}
+
+\input{generated/t1_test}
+
+\textbf{Results.} Over all test conditions the universal autoencoder reaches 21.23\,dB / 0.723 SSIM against 22.33\,dB / 0.671 for the unrestored input (Table~\ref{tab:t1_test}). Its behaviour depends strongly on the damage: for salt-and-pepper noise it improves the image substantially (16.4$\to$21.9\,dB, SSIM 0.38$\to$0.75) and the gain grows with severity (13.1$\to$21.8\,dB at $p=0.15$); for occlusion it recovers PSNR (13.6$\to$19.7\,dB; 10.7$\to$18.5\,dB for 35\,\% coverage) but SSIM drops slightly (0.709$\to$0.668); for blur and for \emph{clean} inputs it is \emph{worse} than the input (e.g.\ blur/low 32.3$\to$22.1\,dB, clean 50$\to$22.0\,dB). This is the cost of the genuine bottleneck: every pixel must be regenerated from a $24\times$ compressed code, so the output quality saturates at about 22\,dB irrespective of the input quality (the output PSNR varies by only $\approx$0.1\,dB across the three salt-and-pepper severities), whereas inputs with mild damage are already better than that. This observation motivates the identity branch used in Tasks 2 and 3. Fig.~\ref{fig:t1ex} shows twelve representative test examples (clean, three severities of each corruption, and two random cases) with the absolute error map. Compared with the dense baseline (Fig.~\ref{fig:t1dense}) the spatial latent retains object shape, edges and colour, confirming the benefit of the convolutional prior.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{t1_examples.png}
+\caption{Task 1, twelve representative test examples (rows: corrupted input, restored output, clean target, $4\times$ absolute error). Columns follow the manifest: clean, salt-and-pepper (low/medium/high), blur (low/medium/high), occlusion (low/medium/high) and two random cases.}
+\label{fig:t1ex}
+\end{figure*}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{t1_dense_examples.png}
+\caption{Ablation: the same test examples reconstructed by the dense-bottleneck autoencoder of the first search (18.37\,dB, SSIM 0.454): only coarse colour blobs survive.}
+\label{fig:t1dense}
+\end{figure}
+
+\textbf{Failure cases.} Fig.~\ref{fig:t1fail} shows the worst (lowest-SSIM) test example for each type. (i) \emph{Clean} (11.8\,dB): a pale cat on a pure black background; the network cannot reproduce the sharp black/white transition and leaks a brown halo into the background, an artefact of the bottleneck. (ii) \emph{Salt-and-pepper, $p=0.15$} (15.8\,dB) and (iii) \emph{blur, $\sigma=2.5$} (16.0\,dB): the same highly textured meadow image is the worst case for both, because its high-frequency detail is neither present in the blurred input nor representable in the latent. (iv) \emph{Occlusion, 35\,\%} (10.4\,dB, SSIM 0.25): the black masks hide most of the cat's body against a black background; the model fills the hole with a smooth grey region (no semantic inpainting), and this mismatch dominates the error map.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{t1_failures.png}
+\caption{Task 1 failure cases (worst clean, salt-and-pepper, blur and occlusion test examples).}
+\label{fig:t1fail}
+\end{figure}
+
+\subsection{Task 2: Classifier and Hard-Routed Specialists}
+\textbf{Optuna and training.} The classifier search (20 trials, 7 completed, 13 pruned; Tables~\ref{tab:optuna_cls_space}, \ref{tab:optuna_cls_best}) chose five conv blocks with 48 base channels, dropout 0.47 and a small weight decay. The shared specialist search (14 trials, 8 completed; Tables~\ref{tab:optuna_ae_specialist_space}, \ref{tab:optuna_ae_specialist_best}) again preferred the spatial bottleneck ($c_{\mathrm{lat}}=32$, $\alpha=0.688$). The three specialists were then trained independently, each only on its own corruption.
+
+\input{generated/optuna_cls_space}
+\input{generated/optuna_cls_best}
+\input{generated/optuna_ae_specialist_space}
+\input{generated/optuna_ae_specialist_best}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{curves_task2.png}
+\caption{Task 2: classifier loss and validation accuracy/F1, and validation PSNR of the three specialists.}
+\label{fig:curves2}
+\end{figure*}
+
+\input{generated/t2_cls}
+
+\textbf{Classifier.} On the 36{,}690 test entries the classifier reaches accuracy 0.9963, macro-precision 0.9919, macro-recall 0.9959 and macro-F1 0.9939 (Table~\ref{tab:t2_cls}); the normalised confusion matrix is in Fig.~\ref{fig:t2cm}. Salt-and-pepper noise is recognised perfectly at all three severities, blur almost perfectly (recall 0.9997; 0.9992 at the weakest setting $k=3,\sigma=0.7$). The only noticeable confusion involves the clean class: 1.0\,\% of occluded images are called clean, almost all of them the weakest occlusion (recall 0.9695 for the single 10\,\% rectangle, which hides little), and 0.5\,\% of clean images are called blur; the lowest precision (0.969) belongs to the clean class because it receives these errors, and it has a smaller support (3{,}669 vs.\ 11{,}007).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.8\columnwidth]{t2_confusion.png}
+\caption{Task 2: normalised four-class confusion matrix on the test manifest.}
+\label{fig:t2cm}
+\end{figure}
+
+\input{generated/t2_restoration}
+
+\textbf{Restoration with oracle and predicted routing.} Table~\ref{tab:t2_rest} gives the two modes. Overall the system reaches 24.79\,dB in both modes (SSIM 0.752 oracle, 0.753 predicted), against 22.33\,dB / 0.671 for the input and 21.23\,dB / 0.723 for the universal autoencoder of Task~1; since the classifier is almost perfect, predicted routing loses nothing measurable relative to oracle routing. Part of the gain comes simply from the identity bypass: clean images are returned exactly (49.8\,dB with the 50\,dB cap) while Task~1 damaged them. On \emph{corrupted} images only, the specialists beat the universal model by 1.9\,dB (salt-and-pepper: 23.79 vs.\ 21.90), 0.3\,dB (blur: 22.22 vs.\ 21.91) and 0.3\,dB (occlusion: 19.97 vs.\ 19.65): specialisation helps most when the corruption has a simple, learnable inverse (noise) and little when the missing information cannot be recovered (blur, occlusion). As in Task~1, the blur specialist is below the input PSNR (22.2 vs.\ 27.8\,dB).
+
+\textbf{Routing failures.} 137 of 36{,}690 test entries (0.37\,\%) were misrouted. The damaging cases are not those where a corrupted image is sent to the wrong expert but those where a \emph{clean} image is classified as corrupted: the selected expert then regenerates the image from its latent code and destroys its fidelity. Fig.~\ref{fig:t2fail} shows the four worst: clean images routed to the blur expert (50\,dB $\to$ 10.8, 11.9 and 12.0\,dB) or to the occlusion expert (50 $\to$ 13.6\,dB). Misrouted images lost on average 2.3\,dB relative to oracle routing; this is the weakness of hard routing that Task~3 addresses.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{t2_routing_failures.png}
+\caption{Task 2 routing failures: clean test images sent to a restoration expert by the classifier (rows: input, oracle routing = identity, predicted routing, clean).}
+\label{fig:t2fail}
+\end{figure}
+
+\subsection{Task 3: Soft Mixture-of-Experts}
+\textbf{Optuna.} The 15-trial study (Tables~\ref{tab:optuna_moe_space}, \ref{tab:optuna_moe_best}) tuned the joint learning rate, temperature, $\lambda_{CE}$, $\lambda_{bal}$ and $\alpha$; trials with a collapsed or dominating branch would have been pruned, but none of the 15 trials collapsed. The selected configuration has $\tau=1.43$ (a slightly softened gate), $\lambda_{CE}=0.019$, $\lambda_{bal}=0.0074$ and $\alpha=0.725$. The training used 2 warm-up epochs (gate only, learning rate $3\times$ the joint one) followed by 18 joint epochs (Fig.~\ref{fig:curves3}); on the validation set the system started at 28.7\,dB (right after initialisation from Task~2, where the identity branch already helps clean images) and finished at 30.2\,dB.
+
+\input{generated/optuna_moe_space}
+\input{generated/optuna_moe_best}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{curves_task3.png}
+\caption{Task 3 joint training: losses, validation PSNR and mean gate weights per branch.}
+\label{fig:curves3}
+\end{figure*}
+
+\input{generated/t3_test}
+
+\textbf{Restoration.} Table~\ref{tab:t3_test} reports 26.28\,dB / 0.814 SSIM overall, which is higher than hard routing (24.79\,dB / 0.753), the universal autoencoder (21.23\,dB / 0.723) and the input (22.33\,dB / 0.671); the corresponding model built on the dense bottleneck reached 24.40\,dB / 0.723. In particular, the soft blend closes the gap on blur: SSIM 0.827 is \emph{above} the input's 0.814 and PSNR is 26.4\,dB for blur (29.1\,dB at the lowest severity, versus 22.1 for the specialist alone), because the gate mixes the input with the expert's output instead of replacing it. Clean images stay at 49.8\,dB, and salt-and-pepper (24.1\,dB) and occlusion (20.6\,dB, SSIM 0.77) improve on Task~2 as well.
+
+\input{generated/t3_weights}
+
+\textbf{Gate behaviour.} Table~\ref{tab:t3_weights} and Fig.~\ref{fig:t3heat} list the mean weights per true condition and severity. The gate has \emph{not} remained a pure classifier (argmax-routing accuracy 0.673, compared with 99.6\,\% for the initial classifier) because the reconstruction loss dominates the small classification weight selected by Optuna; instead it learned a severity-adaptive blending policy: clean $\to$ identity (0.99); salt-and-pepper $\to$ salt expert with weight rising from 0.84 (low) to 0.98 (high); blur $\to$ roughly equal identity and blur expert (0.71/0.28 at low, 0.48/0.52 at high); occlusion $\to$ identity plus occlusion expert (0.42 at low, 0.58 at high). Every expert is used only for its own corruption type (their weights for unrelated types are numerically zero), so no expert dominates unrelated inputs and none is inactive: the mean weights per branch are 0.442/0.278/0.127/0.154 (identity/salt/blur/occlusion), with the blur expert the least used, consistent with Task~2 where blur is the corruption that specialisation helps least. Fig.~\ref{fig:t3w} shows examples where one expert completely dominates (heavy salt-and-pepper noise: weight $\approx$1 on the salt expert) and examples where the weights are spread (lighter noise: about 0.65 identity, 0.25 salt expert). The load-balance term is not violated (no branch below 0.05), but note that ``balance'' is measured on a class-balanced batch: the identity branch still gets the largest average share.
+
+\input{generated/t3_health}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{t3_heatmap.png}
+\caption{Task 3: mean routing weight per true corruption type and severity (test).}
+\label{fig:t3heat}
+\end{figure}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{t3_weight_examples.png}
+\caption{Task 3 routing weights for individual test images: one expert dominating (left three) and distributed weights (right three). Bars: identity, salt, blur, occlusion.}
+\label{fig:t3w}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{t3_examples.png}
+\caption{Task 3 soft-MoE restoration: twelve representative test examples (input, restored, clean, $4\times$ error).}
+\label{fig:t3ex}
+\end{figure*}
+
+\textbf{Failure cases.} The four worst cases (Fig.~\ref{fig:t3fail}) are: a clean image with large black areas for which the gate gives 0.53 weight to the occlusion expert (13.2\,dB): the gate confuses real dark regions with occlusion, the soft-MoE analogue of the hard-routing failure but milder because the identity still gets 0.47; a heavily textured salt-and-pepper image (17.5\,dB, weight 0.93 on the salt expert) whose texture cannot be regenerated; a strongly blurred image (18.1\,dB; weights 0.76 identity, 0.24 blur); and a large 35\,\% occlusion (10.8\,dB; 0.59 on the occlusion expert) in which the hole cannot be plausibly inpainted by an autoencoder.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{t3_failures.png}
+\caption{Task 3 failure cases (worst clean, salt-and-pepper, blur and occlusion).}
+\label{fig:t3fail}
+\end{figure}
+
+\subsection{Task 4: Style-Conditioned Face-to-Sketch cGAN}
+\textbf{Optuna and training.} The 12-trial study (6 completed, 6 pruned; Tables~\ref{tab:optuna_gan_space}, \ref{tab:optuna_gan_best}) used shortened runs of 10 epochs. It selected $g_{lr}=5.8\times10^{-4}$, $d_{lr}=6.6\times10^{-4}$, batch size 16, 64 base channels, dropout 0.47, a 32-dimensional style embedding and $\lambda_{L1}=272.5$ (near the upper edge of the searched range $[10,300]$, indicating that a strong pixel term helps on this small dataset). The selected configuration was retrained for the full 150 epochs; the best validation epoch is used. Fig.~\ref{fig:curves4} shows the separately logged discriminator real/fake losses, generator adversarial and $L_1$ losses and validation metrics; the discriminator stays near $0.35$--$0.45$ (neither side collapses) with an isolated instability near epoch 145. The training $L_1$ is higher than validation $L_1$ because training uses dropout and random paired crops. Fig.~\ref{fig:t4prog} shows the same validation photographs at epochs 1, 10, 50, 100 and 150: from an empty grey output at epoch 1 to recognisable faces at epoch 10 and sharp pencil-like strokes by epoch 50, after which improvements are subtle.
+
+\input{generated/optuna_gan_space}
+\input{generated/optuna_gan_best}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{curves_task4.png}
+\caption{Task 4 training: discriminator real/fake loss, generator adversarial loss, generator $L_1$ (train/val) and validation PSNR/SSIM.}
+\label{fig:curves4}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.85\textwidth]{t4_progress.png}
+\caption{Generator development on fixed validation photographs (columns: photograph, generated sketch at epochs 1, 10, 50, 100, 150, ground-truth sketch).}
+\label{fig:t4prog}
+\end{figure*}
+
+\input{generated/t4_test}
+
+\textbf{Results.} On the official test set the generator reaches $L_1=0.102$, 15.9\,dB and SSIM 0.493 (Table~\ref{tab:t4_test}). Performance differs by style: Style~1 (619 test pairs) 17.8\,dB / 0.542, Style~2 (381 pairs) 12.4\,dB / 0.397 and Style~3 (only 46 pairs, so a noisy estimate) 19.1\,dB / 0.629. Pixel metrics are low in absolute terms because hand-drawn strokes are not pixel-aligned with edges in the photograph, and Style~2 sketches are dark and heavily hatched, which an $L_1$-driven generator reproduces as softer, smoother strokes (Figs.~\ref{fig:t4fail}, \ref{fig:t4style}); metrics such as FID or LPIPS were not computed. The style embedding is used by both networks, and the conditioning has a clear effect (Fig.~\ref{fig:t4style}): for the same photographs, Style~1 yields light, thin contour sketches while Style~2 and Style~3 yield darker, bolder shading.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\columnwidth]{t4_style_conditioning.png}
+\caption{Conditioning check on test photographs: $G(x,\text{Style 1/2/3})$ and the ground-truth sketch.}
+\label{fig:t4style}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\columnwidth]{t4_failures.png}
+\caption{Lowest-SSIM test examples: the generated sketches are plausible but the strokes differ from the artist's dense hatching, which pixel-wise metrics penalise heavily.}
+\label{fig:t4fail}
+\end{figure}
+
+\subsection{ONNX Export and Consistency}
+All seven inference models (universal autoencoder, classifier, three specialists, soft-MoE pipeline and sketch generator) were exported to ONNX (opset 17, dynamic batch) and run with ONNX Runtime on real test inputs (deterministically corrupted test images and FS2K photographs). Table~\ref{tab:onnx} shows that the maximum absolute difference to PyTorch is below $4\times10^{-6}$, far below the $10^{-4}$ threshold, for every model. On the development laptop's CPU (Intel i5-7200U) the application measured about 25\,ms per image for the universal autoencoder, about 104\,ms for the full soft-MoE pipeline and 67\,ms for the sketch generator.
+
+\input{generated/onnx}
+
+\subsection{Experiment Tracking}
+Every training run and every Optuna trial was logged to MLflow (parameters, per-epoch metrics, validation samples and checkpoints; the SQLite database is in \texttt{experiments/}). Fig.~\ref{fig:mlflow} shows the MLflow views of the Task~3 run table and the Task~4 metric charts. Figures of the Optuna optimisation histories (universal autoencoder, soft MoE and GAN) are in Fig.~\ref{fig:optuna}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.48\textwidth]{mlflow_runs_task3.png}\hfill
+\includegraphics[width=0.48\textwidth]{mlflow_metrics_task4.png}
+\caption{MLflow tracking UI: Task~3 experiment run table (left) and Task~4 training metric charts (right).}
+\label{fig:mlflow}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.32\textwidth]{optuna_universal_history.png}\hfill
+\includegraphics[width=0.32\textwidth]{optuna_moe_history.png}\hfill
+\includegraphics[width=0.32\textwidth]{optuna_gan_history.png}
+\caption{Optuna optimisation histories: Task~1 universal autoencoder, Task~3 soft MoE, Task~4 cGAN.}
+\label{fig:optuna}
+\end{figure*}
+
+\section{Application Screenshots}
+\label{sec:appshots}
+Figs.~\ref{fig:app1}--\ref{fig:app4} show the four workspaces of the running application with the final ONNX models (screenshots taken with the same Docker-independent dev stack; the Docker Compose stack serves the identical frontend and backend). The Universal and Hard-Routed pages show the clean reference, corrupted input, restored output and error map, the selected corruption settings and the inference time; the Hard-Routed page additionally shows the four classifier probabilities, the predicted corruption and the selected expert; the Soft-MoE page shows the four routing weights with the strongest contributors; the Face-to-Sketch page supports upload or webcam, the three style conditions, side-by-side display and a download button.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.72\textwidth]{app_universal.png}
+\caption{Universal Restoration workspace (salt-and-pepper, high severity).}
+\label{fig:app1}
+\end{figure*}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.72\textwidth]{app_hard_routed.png}
+\caption{Hard-Routed Restoration workspace: classifier probabilities, predicted corruption and selected expert.}
+\label{fig:app2}
+\end{figure*}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.72\textwidth]{app_soft_moe.png}
+\caption{Soft Mixture-of-Experts workspace: routing weights and contributing experts.}
+\label{fig:app3}
+\end{figure*}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.72\textwidth]{app_face_to_sketch.png}
+\caption{Face-to-Sketch Generator workspace (Style~2) with side-by-side result and download.}
+\label{fig:app4}
+\end{figure*}
+
+\section{Limitations}
+\label{sec:limits}
+\begin{itemize}
+\item \textbf{Reduced search budgets.} Optuna trials used 6--8 epochs on a 1{,}500-image subset (10 epochs for the GAN) and 12--24 trials per task; the CPU/GPU budget (a free Colab T4 and a one-day deadline) did not allow larger studies. $\lambda_{L1}$ for the GAN landed near the edge of its range and the autoencoder objective also favoured the largest searched latent size, so wider ranges could improve results. Each configuration was run with a single seed, so small differences (e.g.\ oracle vs.\ predicted routing, 0.001 SSIM) are not statistically established.
+\item \textbf{Bottlenecked reconstruction.} With a genuine bottleneck and no skip connections the restoration autoencoders cannot match the fidelity of mildly damaged inputs (blur, low-severity noise, clean). The identity branch of Tasks~2 and 3 compensates, but the specialists remain weaker than the input in that regime; a limited skip connection (allowed by the assignment if justified) was not investigated.
+\item \textbf{Soft-MoE interpretability.} The tuned classification weight is small, so the gate acts as a severity-adaptive blender rather than a classifier (argmax routing 0.673); a larger $\lambda_{CE}$ would make weights more class-like at some cost in quality (we did not tune this trade-off with a routing-aware objective). Compound corruptions (e.g.\ blur + noise) were not evaluated.
+\item \textbf{GAN evaluation.} Only PSNR/SSIM/$L_1$ were used (no FID/LPIPS or user study); Style~3 has just 46 test pairs; FS2K contains few demographics; training images are only $128\times128$.
+\item \textbf{Deployment.} Models run on CPU through ONNX Runtime; the demo corrupts uploaded images with the same synthetic operators as in training, so genuinely different real-world corruptions may behave differently. The Docker images were built and smoke-tested in continuous integration on GitHub; the models are supplied separately (download link in the README).
+\end{itemize}
+
+\section{Conclusion}
+We built and compared three restoration strategies on a common data protocol. A universal convolutional autoencoder with a genuine latent bottleneck restores severe noise and occlusion but cannot beat mildly damaged inputs; a bottleneck that keeps spatial layout is essential (18.4$\to$21.2\,dB over a dense latent). Hard routing by a 99.6\,\%-accurate classifier with specialists and an identity bypass raises the test PSNR to 24.8\,dB with predicted routing equal to oracle routing, but its rare errors on clean images are destructive. A jointly fine-tuned soft MoE reaches 26.3\,dB / 0.814 SSIM by blending identity and experts according to severity, at the price of gate weights that no longer mirror the corruption label. A style-conditioned pix2pix generator with a learned style embedding produces recognisable, style-dependent sketches (test SSIM 0.49), and all four systems were tuned with Optuna, tracked with MLflow, verified against ONNX and deployed in a single web application whose Docker Compose configuration starts the complete stack.
+
+\appendices
+\section{AI-Use Statement}
+Anthropic's Claude (via Claude Code and the Claude desktop application) was used for: drafting and refactoring the Python code (data pipeline, models, training/Optuna/evaluation scripts, FastAPI backend, React frontend, Docker files, CI workflow), operating the Colab notebook and Google Stitch through the browser, and drafting this report. Google Stitch generated the first interface design (Fig.~\ref{fig:stitch}). Every component was tested rather than trusted: unit tests for the split, corruption statistics, manifest determinism, SSIM (against scikit-image), model shapes, GAN conditioning and paired augmentation, and the API (including a test that the backend's corruptions equal the training code's); PyTorch-vs-ONNX numerical comparison; a GitHub Actions workflow that builds and starts the Docker stack; and end-to-end runs of the application on real models. Errors found and corrected during development included a \texttt{.gitignore} rule that hid the data package, SQLite/MLflow stalls on a network drive, a half-precision dtype mismatch in the hard router (found when the first Task~2 evaluation crashed), upper-case FS2K file extensions that break on Linux, and the initial dense-bottleneck design whose blurry results prompted the spatial-latent investigation. All numerical results reported here are copied by script from the files produced by the final runs. The author is responsible for the submitted work and can explain and modify any component.
+
+\section{Reproduction}
+\textbf{Repository:} \url{https://github.com/MusaxKhan/Restoration-GAN}. The README gives the Docker commands (\texttt{python scripts/download\_models.py}, then \texttt{docker compose up --build}), the data-preparation, training, Optuna, evaluation and ONNX-export commands (\texttt{notebooks/colab\_training.ipynb}, \texttt{scripts/run\_v2.sh}, \texttt{scripts/finish\_v2.sh}), and the model download link. Experiment records (MLflow database, Optuna studies, best configurations) are under \texttt{experiments/} and \texttt{configs/}.

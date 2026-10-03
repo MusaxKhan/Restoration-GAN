@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\caption{Task 3 soft mixture-of-experts, test results (PSNR in dB).}
+\label{tab:t3_test}
+\footnotesize
+\begin{tabular}{lrrrrr}
+\toprule
+Condition & PSNR in & PSNR out & SSIM in & SSIM out & n \\
+\midrule
+clean & 50.00 & 49.75 & 1.000 & 0.999 & 3669 \\
+salt\_pepper / low & 20.14 & 24.57 & 0.603 & 0.804 & 3669 \\
+salt\_pepper / medium & 15.87 & 23.90 & 0.339 & 0.777 & 3669 \\
+salt\_pepper / high & 13.14 & 23.67 & 0.204 & 0.767 & 3669 \\
+blur / low & 32.34 & 29.14 & 0.944 & 0.916 & 3669 \\
+blur / medium & 26.77 & 25.65 & 0.806 & 0.814 & 3669 \\
+blur / high & 24.35 & 24.27 & 0.692 & 0.751 & 3669 \\
+occlusion / low & 16.67 & 22.09 & 0.861 & 0.866 & 3669 \\
+occlusion / medium & 13.32 & 20.72 & 0.727 & 0.778 & 3669 \\
+occlusion / high & 10.73 & 19.02 & 0.537 & 0.671 & 3669 \\
+\textbf{overall} & 22.33 & 26.28 & 0.671 & 0.814 & 36690 \\
+\bottomrule
+\end{tabular}
+\end{table}

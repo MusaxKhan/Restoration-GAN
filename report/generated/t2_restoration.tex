@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\caption{Task 2 test restoration with oracle vs.\ predicted routing.}
+\label{tab:t2_rest}
+\footnotesize
+\begin{tabular}{lrrrr}
+\toprule
+Condition & PSNR oracle & SSIM oracle & PSNR pred. & SSIM pred. \\
+\midrule
+clean & 50.00 & 1.000 & 49.83 & 0.999 \\
+salt\_pepper / low & 23.82 & 0.769 & 23.82 & 0.769 \\
+salt\_pepper / medium & 23.80 & 0.767 & 23.80 & 0.767 \\
+salt\_pepper / high & 23.75 & 0.763 & 23.75 & 0.763 \\
+blur / low & 22.28 & 0.761 & 22.29 & 0.761 \\
+blur / medium & 22.35 & 0.759 & 22.35 & 0.759 \\
+blur / high & 22.03 & 0.729 & 22.03 & 0.729 \\
+occlusion / low & 20.94 & 0.701 & 21.02 & 0.707 \\
+occlusion / medium & 20.07 & 0.665 & 20.07 & 0.665 \\
+occlusion / high & 18.90 & 0.608 & 18.90 & 0.608 \\
+\textbf{overall} & 24.79 & 0.752 & 24.79 & 0.753 \\
+\bottomrule
+\end{tabular}
+\end{table}

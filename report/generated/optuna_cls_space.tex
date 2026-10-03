@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{Optuna search space: Task 2 corruption classifier.}
+\label{tab:optuna_cls_space}
+\footnotesize
+\begin{tabular}{ll}
+\toprule
+Hyper-parameter & Distribution \\
+\midrule
+lr & loguniform[1e-4, 3e-3] \\
+batch\_size & categorical{32, 64, 128} \\
+base\_ch & categorical{16, 32, 48} \\
+depth & categorical{3, 4, 5} \\
+dropout & uniform[0.0, 0.5] \\
+weight\_decay & loguniform[1e-6, 1e-2] \\
+\bottomrule
+\end{tabular}
+\end{table}

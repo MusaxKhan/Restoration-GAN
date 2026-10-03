@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{Optuna search space: Task 4 face-to-sketch cGAN.}
+\label{tab:optuna_gan_space}
+\footnotesize
+\begin{tabular}{ll}
+\toprule
+Hyper-parameter & Distribution \\
+\midrule
+g\_lr & loguniform[5e-5, 1e-3] \\
+d\_lr & loguniform[5e-5, 1e-3] \\
+batch\_size & categorical{8, 16, 32} \\
+base\_ch & categorical{32, 48, 64} \\
+dropout & uniform[0.0, 0.5] \\
+style\_dim & categorical{8, 16, 32, 64} \\
+lambda\_l1 & loguniform[10, 300] \\
+\bottomrule
+\end{tabular}
+\end{table}

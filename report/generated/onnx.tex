@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{PyTorch vs.\ ONNX Runtime consistency (max abs.\ difference, real test images).}
+\label{tab:onnx}
+\footnotesize
+\begin{tabular}{lrcr}
+\toprule
+Model & max |diff| & passed ($<10^{-4}$) & size (MB) \\
+\midrule
+universal\_ae & 7.15e-07 & yes & 9.6 \\
+classifier & 1.19e-07 & yes & 21.2 \\
+specialist\_salt & 8.05e-07 & yes & 9.6 \\
+specialist\_blur & 7.00e-07 & yes & 9.6 \\
+specialist\_occ & 5.36e-07 & yes & 9.6 \\
+soft\_moe & 4.77e-07 & yes & 50.0 \\
+sketch\_generator & 3.87e-06 & yes & 168.5 \\
+\bottomrule
+\end{tabular}
+\end{table}

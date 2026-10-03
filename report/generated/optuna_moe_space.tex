@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\caption{Optuna search space: Task 3 joint fine-tuning.}
+\label{tab:optuna_moe_space}
+\footnotesize
+\begin{tabular}{ll}
+\toprule
+Hyper-parameter & Distribution \\
+\midrule
+lr & loguniform[1e-5, 1e-3] \\
+tau & loguniform[0.5, 2.0] \\
+lambda\_ce & loguniform[0.01, 1.0] \\
+lambda\_bal & loguniform[1e-3, 0.1] \\
+alpha (L1 weight; SSIM weight = 1 - alpha) & uniform[0.5, 0.95] \\
+\bottomrule
+\end{tabular}
+\end{table}

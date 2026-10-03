@@ -20,3 +20,5 @@ mlflow.db
 mlartifacts/
 runs/
 colab_results/
+colab_results2/
+playwright-report/

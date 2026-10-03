@@ -112,3 +112,10 @@ with $\lambda_1=\alpha$, $\lambda_2=1-\alpha$, $\bar{w}_k$ the mean weight of br
 \end{figure*}
 
 \textbf{Architecture.} A React + Tailwind single-page application (served by nginx in its own container) calls a FastAPI backend (second container). The backend validates uploads (size limit, real-image check, allowed formats), resizes to $128\times128$, optionally applies the selected corruption with the \emph{same} algorithms as training (a NumPy/OpenCV re-implementation that is unit-tested against the training code), runs the ONNX models with ONNX Runtime, and returns base64 PNGs, routing information and timings. Endpoints: \texttt{GET /api/health}, \texttt{GET /api/samples}, \texttt{POST /api/universal}, \texttt{/api/hard-route}, \texttt{/api/soft-moe} and \texttt{/api/sketch}. The four workspaces are: \emph{Universal Restoration} (input, restored output, error map, corruption settings, inference time), \emph{Hard-Routed Restoration} (four classifier probabilities, predicted corruption, selected expert, output, timing), \emph{Soft Mixture-of-Experts} (four routing weights with the strongest contributors highlighted, output, timing) and \emph{Face-to-Sketch Generator} (upload or webcam, Style~1/2/3, side-by-side photo/sketch, download). \texttt{docker compose up --build} starts both containers; the ONNX models are mounted from \texttt{./models}. Screenshots of the running application are in Section~\ref{sec:appshots}.
+
+\input{results}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
