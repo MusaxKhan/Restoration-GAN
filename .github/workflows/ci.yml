@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU PyTorch and dependencies
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy pillow scikit-learn scikit-image matplotlib tqdm optuna mlflow onnx onnxruntime pytest
+          pip install fastapi httpx python-multipart opencv-python-headless
+      - name: Unit tests (models, GAN components, backend corruptions/API without models)
+        run: |
+          python -m pytest tests/test_models.py -q
+          MODEL_DIR=/nonexistent python -m pytest backend/tests -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build images
+        run: docker compose build
+      - name: Start the stack (without model files) and check health + frontend proxy
+        run: |
+          docker compose up -d
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/api/health && break || sleep 2; done
+          curl -sf http://localhost:8000/api/health
+          curl -sf http://localhost:3000/ | grep -qi "Restoration Studio"
+          curl -sf http://localhost:3000/api/health
+          curl -sf http://localhost:3000/api/samples | head -c 100
+          docker compose down
