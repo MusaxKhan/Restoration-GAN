@@ -1,0 +1,1 @@
+https://github.com/MusaxKhan/Restoration-GAN/releases/download/v1.0/models_final.zip
