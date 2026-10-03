@@ -1,0 +1,114 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{textcomp}
+\graphicspath{{figures/}}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\begin{document}
+
+\title{Universal, Hard-Routed and Soft Mixture-of-Experts Image Restoration, and Style-Conditioned Face-to-Sketch Generation: Training, Evaluation and Deployment}
+
+\author{\IEEEauthorblockN{Musa Khan}
+\IEEEauthorblockA{Generative AI -- Assignment 1\\
+Code: \url{https://github.com/MusaxKhan/Restoration-GAN}\\
+Demo video: \url{YOUTUBE_LINK_TO_BE_ADDED}}}
+
+\maketitle
+
+\begin{abstract}
+We design, train, evaluate and deploy four related generative systems. Tasks 1--3 restore $128\times128$ Oxford-IIIT Pet images corrupted at run time by salt-and-pepper noise, Gaussian blur or rectangular occlusion: (1) one universal denoising autoencoder with a genuine compressed latent code, (2) a corruption classifier that hard-routes images to three independently trained specialist autoencoders, and (3) a jointly fine-tuned soft mixture-of-experts whose gate is initialised from the classifier and whose experts come from Task~2. Task~4 is a style-conditioned conditional GAN (U-Net generator, PatchGAN discriminator) that turns FS2K face photographs into sketches in one of three styles. All hyper-parameters were tuned with Optuna, experiments are tracked in MLflow, every inference model is exported to ONNX and verified against PyTorch, and the four tasks are served by a single React/FastAPI web application that runs through Docker Compose. We report quantitative results, routing behaviour of the gate, failure cases and the application design that was prototyped in Google Stitch.
+\end{abstract}
+
+\begin{IEEEkeywords}
+denoising autoencoder, mixture of experts, image restoration, conditional GAN, Optuna, ONNX, deployment
+\end{IEEEkeywords}
+
+\section{Introduction}
+Image restoration is rarely a single problem: real inputs may be clean, noisy, blurred or partly missing, and the type of damage is usually unknown. A single network must then compromise between very different inverse problems, whereas a pipeline of specialists needs a reliable way to decide which specialist to use. Tasks~1--3 of this assignment study exactly this trade-off on synthetic but controlled corruptions: a universal autoencoder (UAE), a classifier-driven hard routing system, and a differentiable soft mixture-of-experts (MoE) in which the gate and the experts are trained jointly. Task~4 addresses a different generative problem, paired photo-to-sketch translation with a conditional GAN, where the sketch style is an explicit categorical condition.
+
+The assignment is as much an engineering exercise as a modelling one: all models must be tuned (Optuna), tracked (MLflow), exported (ONNX), served (FastAPI) behind a React interface and shipped as Docker containers. This report documents each task's architecture, losses, training procedure and hyper-parameter search, presents the results obtained from the final trained models, analyses failure cases, and describes the application.
+
+\section{Related Work and Design Decisions}
+\textbf{Denoising autoencoders.} Denoising autoencoders learn robust representations by reconstructing a clean input from a corrupted one \cite{vincent2008dae}, and deep autoencoders with a low-dimensional bottleneck were shown to be effective non-linear dimensionality-reduction tools \cite{hinton2006reducing}. Skip connections between encoder and decoder (as in U-Net \cite{ronneberger2015unet}) make restoration easy but allow the network to copy corrupted pixels; because Task~1 requires a meaningful bottleneck, we use \emph{no} skip connections, so that every pixel of the output must pass through the latent vector. This choice trades fidelity for a true compressed representation, a trade-off we quantify in Section~\ref{sec:t1}.
+
+\textbf{Losses.} Pixel losses such as $L_2$ produce blurry output and are poorly correlated with perceived quality; Zhao et al.\ \cite{zhao2017loss} showed that mixing $L_1$ with a structural-similarity term (SSIM \cite{wang2004ssim}) converges better and gives better quality than either alone. We therefore use $\mathcal{L}=\alpha\mathcal{L}_{1}+(1-\alpha)(1-\mathrm{SSIM})$, with $\alpha$ selected by Optuna instead of fixed to 0.8.
+
+\textbf{All-in-one restoration.} Recent work addresses unknown corruption types with one model, e.g.\ AirNet, which learns a degradation representation by contrastive learning and conditions the restoration network on it \cite{li2022airnet}. Our hard-routed and soft-MoE systems explore a simpler alternative: explicit corruption classification and expert selection.
+
+\textbf{Mixture of experts.} Adaptive mixtures of local experts \cite{jacobs1991moe} combine specialists through a trainable gate; sparsely-gated MoE layers \cite{shazeer2017moe} and Switch Transformers \cite{fedus2022switch} add auxiliary load-balancing losses to prevent routing collapse, where the gate sends nearly every input to one expert. Our balance term (Section~\ref{sec:t3}) follows the same motivation, using a squared deviation of the batch-average gate weights from the uniform value $1/4$ on class-balanced batches, as suggested in the assignment.
+
+\textbf{Conditional GANs and sketches.} Generative adversarial networks \cite{goodfellow2014gan} and their conditional form \cite{mirza2014cgan} underlie pix2pix \cite{isola2017pix2pix}, which pairs a U-Net generator with a PatchGAN discriminator \cite{li2016patchgan} and adds an $L_1$ term to the adversarial loss. The FS2K dataset \cite{fan2022fs2k} provides 2{,}104 photograph--sketch pairs in three sketch styles; its authors' FSGAN baseline also uses a style vector, which motivates our learned style embedding.
+
+\textbf{Tooling.} Hyper-parameters are tuned with Optuna's TPE sampler and median pruner \cite{akiba2019optuna}, runs are tracked with MLflow \cite{zaharia2018mlflow}, models are exported to ONNX and executed with ONNX Runtime \cite{onnx}, and the API uses FastAPI \cite{fastapi}. The interface was prototyped in Google Stitch \cite{stitch}.
+
+\section{Datasets and Corruption Protocol}
+\subsection{Oxford-IIIT Pet (Tasks 1--3)}
+The Oxford-IIIT Pet dataset \cite{parkhi2012pets} provides 3{,}680 official train/validation images and 3{,}669 official test images of 37 breeds; labels are not used. All images are converted to RGB and resized to $128\times128$. The official train/validation collection is split 80/20 with random seed 42 (2{,}944 / 736 images) and the \emph{same} split is used in Tasks~1--3. The official test set is untouched until the final evaluation.
+
+\subsection{Run-time corruption}
+Corruptions are generated inside the data loader; no corrupted copies are stored. For every training image one of four conditions is drawn with equal probability and a fresh severity is sampled at every access: \emph{clean}; \emph{salt-and-pepper} with probability $p\sim\mathcal{U}(0.02,0.15)$, affected pixels set to black or white with equal probability; \emph{Gaussian blur} with kernel size in $\{3,5,7\}$ and $\sigma\sim\mathcal{U}(0.5,2.5)$; \emph{rectangular occlusion} with 1--3 non-overlapping black rectangles jointly covering 10--35\,\% of the image at random positions (random aspect ratio in $[0.5,2]$). A single function maps an image and a corruption \emph{specification} to the corrupted image, so the same code serves training (specification sampled on the fly) and evaluation (specification read from a manifest).
+
+\subsection{Deterministic manifests}
+A validation manifest (one corruption per validation image, 736 entries, type uniform, severity from the training distribution) and a test manifest were generated once from fixed seeds and stored in JSON together with the corruption type, severity, rectangle coordinates, blur settings and the salt-and-pepper seed. The test manifest contains for every test image the clean image and three fixed severities per corruption: $p\in\{0.03,0.08,0.15\}$; blur $(k,\sigma)\in\{(3,0.7),(5,1.5),(7,2.5)\}$; and 1/2/3 rectangles covering 10/20/35\,\% (36{,}690 entries in total). Unit tests verify the split, the corruption statistics (e.g.\ measured coverage within 4\,\% of target), determinism and that the training pipeline re-samples corruptions at every access. Example corruptions are shown in Fig.~\ref{fig:corr}.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{corruption_examples.png}
+\caption{Test-manifest corruptions for three images (columns: clean, then salt-and-pepper, blur and occlusion at low/medium/high severity).}
+\label{fig:corr}
+\end{figure*}
+
+\subsection{FS2K (Task 4)}
+FS2K contains 1{,}058 official training pairs and 1{,}046 official test pairs with three sketch styles (style index 0/1/2 is shown as Style~1/2/3). 15\,\% of the training pairs (stratified by style, seed 42) form the validation set; the official test set is used only for the final evaluation. Photographs and sketches are resized to $128\times128$ with their pairing preserved. Paired augmentation applies the \emph{same} random horizontal flip and the \emph{same} random crop box (scale 0.8--1.0, resized back) to both images; a unit test checks that augmentation preserves alignment.
+
+\section{Methods}
+\subsection{Common training set-up}
+Models are implemented in PyTorch. The restoration networks use AdamW \cite{loshchilov2019adamw} with a one-cycle learning-rate schedule \cite{smith2019onecycle}, gradient clipping at 5 and mixed precision on the GPU; GANs use Adam \cite{kingma2015adam} with $\beta=(0.5,0.999)$. Batch normalisation \cite{ioffe2015bn} is used in the convolutional blocks. The validation \emph{objective} used by every Optuna study is independent of any tuned loss weight: for restoration it is the mean validation $L_1+(1-\mathrm{SSIM})$ (lower is better); for the classifier $1-$macro-F1; for the GAN the validation $L_1+(1-\mathrm{SSIM})$ of generated against ground-truth sketches. SSIM is our own differentiable implementation (11$\times$11 Gaussian window, $\sigma=1.5$), unit-tested against scikit-image. PSNR is reported with a 50\,dB cap so that exact identity does not yield infinite values. All experiments are logged to MLflow (parameters, per-epoch curves, final checkpoints, sample images), and Optuna studies are stored in SQLite so that interrupted runs can resume.
+
+\subsection{Task 1: universal denoising autoencoder}
+\textbf{Architecture.} The encoder has four stride-2 convolutional stages ($128\to8$ pixels) whose channel count doubles from $c$ to $8c$, each stage being a $4\times4$ stride-2 convolution followed by a $3\times3$ convolution (batch norm, LeakyReLU). The $8\times8\times8c$ feature map is flattened and projected by a linear layer to a latent vector of dimension $d$ (dropout $p$), i.e.\ a compression of $49{,}152/d$ times; a linear layer re-expands it and four transposed-convolution stages and a final $3\times3$ convolution with a sigmoid reconstruct the $128\times128$ RGB image. There are no skip connections. The network is never told the corruption type.
+
+\textbf{Loss.} $\mathcal{L}=\alpha L_1(x,\hat{x})+(1-\alpha)(1-\mathrm{SSIM}(x,\hat{x}))$ with $x$ the clean target and $\hat{x}=D(E(\tilde{x}))$ the reconstruction of the corrupted input $\tilde{x}$.
+
+\textbf{Optuna.} Learning rate, batch size, latent dimension $d$ (bottleneck), number of encoder channels $c$, dropout and $\alpha$ were searched (Table~\ref{tab:optuna_ae_universal_space}); each trial trains for a reduced budget on a subset of the training split, with median pruning.
+
+\subsection{Task 2: classifier and hard-routed specialists}
+\textbf{Classifier.} A plain CNN with $d_c$ conv blocks (two $3\times3$ convolutions each, channels $b,2b,\dots$ capped at $8b$, max pooling), global average pooling, dropout and a 4-way linear head, trained with multiclass cross-entropy on \emph{exactly class-balanced} batches (a custom batch sampler draws $B/4$ samples of every condition; labels come from the run-time pipeline).
+
+\textbf{Specialists.} Three autoencoders of the Task~1 architecture are trained independently, each only on one corruption type (salt-and-pepper, blur, occlusion) with the same clean target and the $L_1$+SSIM loss. As allowed, one shared Optuna search selects a common architecture (learning rate, bottleneck, channels, batch size, $\alpha$): every trial trains the three specialists briefly and the objective is their mean validation objective.
+
+\textbf{Inference.} With $r=\arg\max_k p_k$, the output is the identity for $r=$ clean (bypass, no expert is run) and $A_r(\tilde{x})$ otherwise. We evaluate two modes: \emph{oracle routing} (true label from the manifest) and \emph{predicted routing} (classifier decision).
+
+\subsection{Task 3: jointly trained soft mixture-of-experts}
+\label{sec:t3}
+The gate is the Task~2 classifier; the experts are the three trained specialists; an identity branch handles clean inputs. With gate logits $G(\tilde{x})$ and temperature $\tau$, $w=\mathrm{softmax}(G(\tilde{x})/\tau)$ and $\hat{x}=w_0\tilde{x}+w_1A_{\mathrm{s\&p}}(\tilde{x})+w_2A_{\mathrm{blur}}(\tilde{x})+w_3A_{\mathrm{occ}}(\tilde{x})$, which is differentiable in both gate and experts. Training starts from the Task~2 weights (no random initialisation): first a warm-up stage with frozen experts trains only the gate, then all components are fine-tuned jointly with a smaller learning rate. The loss is
+\begin{equation}
+\mathcal{L}=\lambda_{1}L_{1}+\lambda_{2}(1-\mathrm{SSIM})+\lambda_{3}\,\mathrm{CE}\!\left(\tfrac{G(\tilde{x})}{\tau},y\right)+\lambda_{4}\sum_{k=0}^{3}\left(\bar{w}_k-\tfrac14\right)^2,
+\end{equation}
+with $\lambda_1=\alpha$, $\lambda_2=1-\alpha$, $\bar{w}_k$ the mean weight of branch $k$ over a class-balanced batch. The cross-entropy keeps the gate tied to the known run-time label (applied to the tempered logits so that it matches the routing weights actually used), and the squared-deviation balance term is a differentiable load-balancing regulariser in the spirit of \cite{shazeer2017moe,fedus2022switch}. Optuna tunes the joint learning rate, $\tau$, $\lambda_3$, $\lambda_4$ and $\alpha$; a trial is pruned when its intermediate objective is poor \emph{or} when routing collapses (a branch with mean validation weight below 0.02 or above 0.85). The complete pipeline (gate, experts, blending) is exported as one ONNX graph.
+
+\subsection{Task 4: style-conditioned face-to-sketch cGAN}
+\textbf{Generator.} A U-Net with seven stride-2 stages ($128\to1$) and a mirrored decoder with skip connections (dropout in the first three decoder stages). The style $s\in\{1,2,3\}$ is a \emph{learned embedding} of dimension $e$ that is (i) tiled over the image and concatenated to the input photograph and (ii) concatenated to the $1\times1$ bottleneck, so it influences both low-level and global features.
+
+\textbf{Discriminator.} A PatchGAN that receives the concatenation of photograph, (real or generated) sketch and the tiled embedding of the same style from its own learned embedding table, and outputs a $14\times14$ map of real/fake logits.
+
+\textbf{Losses.} $\mathcal{L}_D=\tfrac12[\mathrm{BCE}(D(x,y,s),1)+\mathrm{BCE}(D(x,G(x,s),s),0)]$ and $\mathcal{L}_G=\mathrm{BCE}(D(x,G(x,s),s),1)+\lambda_{L1}\lVert y-G(x,s)\rVert_1$. The discriminator real loss, discriminator fake loss, generator adversarial loss and generator $L_1$ loss are logged separately every epoch, together with validation $L_1$/PSNR/SSIM; the same six validation photographs are rendered at fixed intervals to monitor generator development. Optuna tunes the generator and discriminator learning rates, batch size, base channel count, dropout, style-embedding dimension and $\lambda_{L1}$ on shortened runs; the selected configuration is then retrained for the full schedule.
+
+\section{Application and Deployment}
+\label{sec:app}
+\textbf{Design.} The interface was designed first in Google Stitch (Fig.~\ref{fig:stitch}); the React/Tailwind frontend follows its palette (indigo/cyan/teal on dark), fonts (Space Grotesk, Geist) and layout (left navigation with four workspaces, control card, image-panel grid, statistics card).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{stitch_canvas_overview.jpg}
+\caption{Original Google Stitch design of ``Restoration Studio'' (design system and workspace screens) from which the React frontend was implemented.}
+\label{fig:stitch}
+\end{figure*}
+
+\textbf{Architecture.} A React + Tailwind single-page application (served by nginx in its own container) calls a FastAPI backend (second container). The backend validates uploads (size limit, real-image check, allowed formats), resizes to $128\times128$, optionally applies the selected corruption with the \emph{same} algorithms as training (a NumPy/OpenCV re-implementation that is unit-tested against the training code), runs the ONNX models with ONNX Runtime, and returns base64 PNGs, routing information and timings. Endpoints: \texttt{GET /api/health}, \texttt{GET /api/samples}, \texttt{POST /api/universal}, \texttt{/api/hard-route}, \texttt{/api/soft-moe} and \texttt{/api/sketch}. The four workspaces are: \emph{Universal Restoration} (input, restored output, error map, corruption settings, inference time), \emph{Hard-Routed Restoration} (four classifier probabilities, predicted corruption, selected expert, output, timing), \emph{Soft Mixture-of-Experts} (four routing weights with the strongest contributors highlighted, output, timing) and \emph{Face-to-Sketch Generator} (upload or webcam, Style~1/2/3, side-by-side photo/sketch, download). \texttt{docker compose up --build} starts both containers; the ONNX models are mounted from \texttt{./models}. Screenshots of the running application are in Section~\ref{sec:appshots}.
