@@ -21,10 +21,11 @@ STYLE_NAMES = ["Style 1", "Style 2", "Style 3"]
 def _pair_paths(item: dict) -> tuple[Path, Path]:
     d, n = item["image_name"].split("/")  # e.g. photo1/image0110
     base = ROOT / "FS2K"
-    photo = base / "photo" / d / f"{n}.jpg"
+    exts = (".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG")  # a few files use upper-case extensions (Linux is case-sensitive)
+    photo = next(p for p in ((base / "photo" / d / f"{n}{e}") for e in exts) if p.exists())
     sk_dir = base / "sketch" / d.replace("photo", "sketch")
     stem = n.replace("image", "sketch")
-    sketch = next(p for p in (sk_dir / f"{stem}.jpg", sk_dir / f"{stem}.png") if p.exists())
+    sketch = next(p for p in ((sk_dir / f"{stem}{e}") for e in exts) if p.exists())
     return photo, sketch
 
 
