@@ -107,7 +107,7 @@ def train_classifier(cfg, out_dir=None, trial=None, mlflow_experiment=None, resu
             if rep["macro_f1"] > best_f1:
                 best_f1, best_rep = rep["macro_f1"], rep
                 best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
-            if out:
+            if out and ((epoch + 1) % cfg.get("ckpt_every", 10) == 0 or epoch + 1 == cfg["epochs"]):
                 out.mkdir(parents=True, exist_ok=True)
                 torch.save({"cfg": cfg, "model": best_state}, out / "best.pt")
                 torch.save({"cfg": cfg, "model": model.state_dict(), "opt": opt.state_dict(),

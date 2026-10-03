@@ -138,7 +138,7 @@ def train_moe(paths: dict, cfg: dict, out_dir=None, trial=None, mlflow_experimen
             if obj < best_obj:
                 best_obj, best_res = obj, res
                 best_state = {k: v.detach().cpu().clone() for k, v in moe.state_dict().items()}
-            if out:
+            if out and ((epoch + 1) % cfg.get("ckpt_every", 10) == 0 or epoch + 1 == cfg["epochs"]):
                 out.mkdir(parents=True, exist_ok=True)
                 torch.save({"cfg": cfg, "paths": paths, "model": best_state,
                             "gate_cfg": torch.load(paths["cls"], map_location="cpu")["cfg"],

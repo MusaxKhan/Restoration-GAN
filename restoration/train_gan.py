@@ -27,7 +27,7 @@ from .losses import psnr, ssim  # noqa: E402
 from .models.gan import PatchDiscriminator, UNetGenerator  # noqa: E402
 
 DEFAULTS = dict(g_lr=2e-4, d_lr=2e-4, batch_size=16, base_ch=64, dropout=0.5, style_dim=16, lambda_l1=100.0,
-                epochs=100, subset_train=None, sample_every=10, workers=None)
+                epochs=100, subset_train=None, sample_every=10, workers=None, ckpt_every=10)
 BCE = F.binary_cross_entropy_with_logits
 
 
@@ -153,12 +153,13 @@ def train_gan(cfg, out_dir=None, trial=None, mlflow_experiment=None, resume=Fals
             if obj < best_obj:
                 best_obj, best_res = obj, res
                 best_state = {k: v.detach().cpu().clone() for k, v in G.state_dict().items()}
-            if out:
-                out.mkdir(parents=True, exist_ok=True)
+            if out and ((epoch + 1) % cfg.get("ckpt_every", 10) == 0 or epoch + 1 == cfg["epochs"]):
+                out.mkdir(parents=True, exist_ok=True)  # checkpoints are large: written every `ckpt_every` epochs
                 torch.save({"cfg": cfg, "model": best_state}, out / "best.pt")
                 torch.save({"cfg": cfg, "G": G.state_dict(), "D": D.state_dict(), "oG": oG.state_dict(),
                             "oD": oD.state_dict(), "epoch": epoch + 1, "best_obj": best_obj,
                             "best_state": best_state, "best_res": best_res}, out / "last.pt")
+            if out:
                 if cfg["sample_every"] and ((epoch + 1) % cfg["sample_every"] == 0 or epoch == 0):
                     p = out / "samples" / f"epoch_{epoch + 1:03d}.png"
                     sample_grid(G, val_ds, fixed, device, p)
