@@ -16,3 +16,6 @@ dist/
 # local
 Open VSCode.bat
 .claude/
+mlflow.db
+mlartifacts/
+runs/
