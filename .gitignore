@@ -1,0 +1,18 @@
+# datasets and large artifacts
+data/
+mlruns/
+checkpoints/
+*.zip
+*.mp4
+
+# python / node
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+.env
+
+# local
+Open VSCode.bat
+.claude/
