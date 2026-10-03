@@ -22,3 +22,8 @@ runs/
 colab_results/
 colab_results2/
 playwright-report/
+report/*.log
+report/*.blg
+report/*.aux
+report/*.out
+report/*.bbl
