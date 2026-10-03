@@ -28,9 +28,31 @@ The header badge turns green when the backend is up and all seven ONNX models ar
 
 ### Model files
 The trained ONNX models (`universal_ae`, `classifier`, `specialist_salt|blur|occ`, `soft_moe`, `sketch_generator`,
-about 0.5 GB in total) are too large for the repository. They are published at the link in
-[`models/README.md`](models/README.md); `scripts/download_models.py` downloads them into `models/`
-(or copy the files there manually). `models/onnx_verification.json` records the PyTorch-vs-ONNX comparison.
+about 270 MB in total) are too large for the repository. They are published as the release asset
+`models_final.zip` of this repository (link in `models/SOURCE.txt`, description in [`models/README.md`](models/README.md));
+`python scripts/download_models.py` downloads and unpacks them into `models/` (or download the zip manually and unzip it there). `models/onnx_verification.json` records the PyTorch-vs-ONNX comparison.
+
+## Results at a glance (official test sets, final models)
+
+| Task | Model | Test result |
+|---|---|---|
+| 1 | Universal denoising AE (spatial 2,048-number latent, no skips) | 21.23 dB / SSIM 0.723 (input 22.33 dB / 0.671) |
+| 2 | Corruption classifier | accuracy 0.9963, macro-F1 0.9939 |
+| 2 | Hard-routed restoration (oracle = predicted routing) | 24.79 dB / SSIM 0.753 |
+| 3 | Soft mixture-of-experts (gate + identity + 3 experts, joint fine-tuning) | 26.28 dB / SSIM 0.814 |
+| 4 | Style-conditioned face-to-sketch cGAN | L1 0.102, 15.91 dB, SSIM 0.493 (n = 1,046) |
+
+A first run with a dense (fully-connected) bottleneck is kept as an ablation in `results/dense_baseline`
+(Task 1: 18.37 dB / 0.454). Details, tables, failure cases and the gate analysis are in the technical report
+(`report/main.tex`, PDF: `report/main.pdf`).
+
+## Experiment-tracking UI (MLflow)
+
+All runs and Optuna trials are recorded in `experiments/mlflow.db`. To browse them:
+
+```bash
+docker compose --profile tracking up mlflow     # http://localhost:5000   (or: pip install mlflow && mlflow ui --backend-store-uri sqlite:///experiments/mlflow.db)
+```
 
 ## Repository layout
 
