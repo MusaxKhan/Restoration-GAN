@@ -51,3 +51,12 @@ def test_classifier_and_moe():
     assert torch.allclose(w.sum(1), torch.ones(2), atol=1e-5)
     manual = w[:, 0, None, None, None] * x + sum(w[:, k + 1, None, None, None] * outs[:, k] for k in range(3))
     assert torch.allclose(recon, manual, atol=1e-5)
+
+
+def test_spatial_latent_autoencoder_shapes():
+    m = DenoisingAE(base_ch=8, latent_type="spatial", latent_ch=8)
+    x = torch.rand(2, 3, 128, 128)
+    z = m.encode(x)
+    assert z.shape == (2, 8, 8, 8) and m.latent_dim == 8 * 64  # 512 numbers vs 49152 input values
+    y = m(x)
+    assert y.shape == x.shape and 0 <= y.min() and y.max() <= 1

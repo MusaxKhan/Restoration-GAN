@@ -1,0 +1,50 @@
+{
+  "n_misrouted": 137,
+  "mean_psnr_drop_when_misrouted": -0.24135689437389374,
+  "worst_cases": [
+    {
+      "index": 31290,
+      "true": "clean",
+      "predicted": "blur",
+      "psnr_oracle": 50.0,
+      "psnr_predicted": 10.901571273803711,
+      "p_true": 0.15029308199882507,
+      "spec": {
+        "type": 0
+      }
+    },
+    {
+      "index": 7060,
+      "true": "clean",
+      "predicted": "blur",
+      "psnr_oracle": 50.0,
+      "psnr_predicted": 11.356263160705566,
+      "p_true": 0.02224923111498356,
+      "spec": {
+        "type": 0
+      }
+    },
+    {
+      "index": 10510,
+      "true": "clean",
+      "predicted": "blur",
+      "psnr_oracle": 50.0,
+      "psnr_predicted": 11.68937873840332,
+      "p_true": 0.4371721148490906,
+      "spec": {
+        "type": 0
+      }
+    },
+    {
+      "index": 11430,
+      "true": "clean",
+      "predicted": "occlusion",
+      "psnr_oracle": 50.0,
+      "psnr_predicted": 11.847900390625,
+      "p_true": 0.00019560354121495038,
+      "spec": {
+        "type": 0
+      }
+    }
+  ]
+}

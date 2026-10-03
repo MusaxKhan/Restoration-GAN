@@ -1,0 +1,291 @@
+{
+  "study": "ae_universal",
+  "direction": "MINIMIZE",
+  "search_space": {
+    "lr": "loguniform[1e-4, 3e-3]",
+    "batch_size": "categorical{32, 64, 128}",
+    "latent_dim": "categorical{128, 256, 512, 1024}",
+    "base_ch": "categorical{16, 32, 48, 64}",
+    "dropout": "uniform[0.0, 0.3]",
+    "alpha": "uniform[0.5, 0.95]"
+  },
+  "n_trials": 20,
+  "n_complete": 9,
+  "n_pruned": 11,
+  "n_failed": 0,
+  "best_trial": 11,
+  "best_value": 0.7347160130739212,
+  "params": {
+    "lr": 0.00033494670588887906,
+    "batch_size": 32,
+    "latent_dim": 1024,
+    "base_ch": 16,
+    "alpha": 0.9331880543198854,
+    "dropout": 0.020966364428487254
+  },
+  "trials": [
+    {
+      "number": 0,
+      "state": "COMPLETE",
+      "value": 0.7760358601808548,
+      "params": {
+        "lr": 0.0003574712922600243,
+        "batch_size": 32,
+        "latent_dim": 1024,
+        "base_ch": 64,
+        "alpha": 0.8745991883601898,
+        "dropout": 0.06370173320348284
+      }
+    },
+    {
+      "number": 1,
+      "state": "COMPLETE",
+      "value": 0.9107210040092468,
+      "params": {
+        "lr": 0.00018559980846490597,
+        "batch_size": 128,
+        "latent_dim": 512,
+        "base_ch": 64,
+        "alpha": 0.5898532019712619,
+        "dropout": 0.15427033152408348
+      }
+    },
+    {
+      "number": 2,
+      "state": "COMPLETE",
+      "value": 0.8566587865352631,
+      "params": {
+        "lr": 0.000750011895041699,
+        "batch_size": 64,
+        "latent_dim": 512,
+        "base_ch": 48,
+        "alpha": 0.5549172056801505,
+        "dropout": 0.14855307303338106
+      }
+    },
+    {
+      "number": 3,
+      "state": "PRUNED",
+      "value": 0.8926278650760651,
+      "params": {
+        "lr": 0.00011240768803005555,
+        "batch_size": 32,
+        "latent_dim": 512,
+        "base_ch": 16,
+        "alpha": 0.7690549904649883,
+        "dropout": 0.27656227050693505
+      }
+    },
+    {
+      "number": 4,
+      "state": "PRUNED",
+      "value": 0.929456815123558,
+      "params": {
+        "lr": 0.00013511829476450826,
+        "batch_size": 128,
+        "latent_dim": 512,
+        "base_ch": 64,
+        "alpha": 0.5335477896558969,
+        "dropout": 0.2960660809801552
+      }
+    },
+    {
+      "number": 5,
+      "state": "PRUNED",
+      "value": 0.9182111322879791,
+      "params": {
+        "lr": 0.0013826083091896758,
+        "batch_size": 128,
+        "latent_dim": 512,
+        "base_ch": 48,
+        "alpha": 0.6489041111836922,
+        "dropout": 0.01906750508580709
+      }
+    },
+    {
+      "number": 6,
+      "state": "PRUNED",
+      "value": 0.9118829816579819,
+      "params": {
+        "lr": 0.0002879775265707035,
+        "batch_size": 64,
+        "latent_dim": 128,
+        "base_ch": 48,
+        "alpha": 0.7352297732218973,
+        "dropout": 0.12826230550756487
+      }
+    },
+    {
+      "number": 7,
+      "state": "PRUNED",
+      "value": 0.9284697473049164,
+      "params": {
+        "lr": 0.00010903028125371,
+        "batch_size": 128,
+        "latent_dim": 512,
+        "base_ch": 32,
+        "alpha": 0.6303881538111956,
+        "dropout": 0.04836638617620132
+      }
+    },
+    {
+      "number": 8,
+      "state": "PRUNED",
+      "value": 0.9120869934558868,
+      "params": {
+        "lr": 0.0023619797107806506,
+        "batch_size": 128,
+        "latent_dim": 512,
+        "base_ch": 32,
+        "alpha": 0.6025708231438738,
+        "dropout": 0.1281323365878769
+      }
+    },
+    {
+      "number": 9,
+      "state": "COMPLETE",
+      "value": 0.7830936312675476,
+      "params": {
+        "lr": 0.0016155001304356408,
+        "batch_size": 32,
+        "latent_dim": 128,
+        "base_ch": 16,
+        "alpha": 0.6636333210706823,
+        "dropout": 0.29153462481628817
+      }
+    },
+    {
+      "number": 10,
+      "state": "COMPLETE",
+      "value": 0.7501464709639549,
+      "params": {
+        "lr": 0.00016784983404258434,
+        "batch_size": 32,
+        "latent_dim": 1024,
+        "base_ch": 16,
+        "alpha": 0.9057891775997897,
+        "dropout": 0.002264195794887902
+      }
+    },
+    {
+      "number": 11,
+      "state": "COMPLETE",
+      "value": 0.7347160130739212,
+      "params": {
+        "lr": 0.00033494670588887906,
+        "batch_size": 32,
+        "latent_dim": 1024,
+        "base_ch": 16,
+        "alpha": 0.9331880543198854,
+        "dropout": 0.020966364428487254
+      }
+    },
+    {
+      "number": 12,
+      "state": "PRUNED",
+      "value": 0.9332708120346069,
+      "params": {
+        "lr": 0.00023153640939948,
+        "batch_size": 128,
+        "latent_dim": 1024,
+        "base_ch": 16,
+        "alpha": 0.9203827622584829,
+        "dropout": 0.025914647366994635
+      }
+    },
+    {
+      "number": 13,
+      "state": "PRUNED",
+      "value": 0.9030977189540863,
+      "params": {
+        "lr": 0.00029138772425543914,
+        "batch_size": 32,
+        "latent_dim": 128,
+        "base_ch": 16,
+        "alpha": 0.6868374665351465,
+        "dropout": 0.010331786773153596
+      }
+    },
+    {
+      "number": 14,
+      "state": "PRUNED",
+      "value": 0.9285893887281418,
+      "params": {
+        "lr": 0.00010246809249716208,
+        "batch_size": 128,
+        "latent_dim": 1024,
+        "base_ch": 16,
+        "alpha": 0.8471787822944338,
+        "dropout": 0.06798355598994857
+      }
+    },
+    {
+      "number": 15,
+      "state": "COMPLETE",
+      "value": 0.7639113217592239,
+      "params": {
+        "lr": 0.0007700773393430148,
+        "batch_size": 32,
+        "latent_dim": 256,
+        "base_ch": 16,
+        "alpha": 0.8749811097313536,
+        "dropout": 0.0030019087399943177
+      }
+    },
+    {
+      "number": 16,
+      "state": "COMPLETE",
+      "value": 0.7592936605215073,
+      "params": {
+        "lr": 0.00044233718471414063,
+        "batch_size": 32,
+        "latent_dim": 1024,
+        "base_ch": 16,
+        "alpha": 0.7873588915359201,
+        "dropout": 0.10958720288174342
+      }
+    },
+    {
+      "number": 17,
+      "state": "PRUNED",
+      "value": 0.9105812460184097,
+      "params": {
+        "lr": 0.00013161885959132503,
+        "batch_size": 32,
+        "latent_dim": 1024,
+        "base_ch": 16,
+        "alpha": 0.6872113622010969,
+        "dropout": 0.01007971128258472
+      }
+    },
+    {
+      "number": 18,
+      "state": "COMPLETE",
+      "value": 0.7494691610336304,
+      "params": {
+        "lr": 0.000212098383116416,
+        "batch_size": 32,
+        "latent_dim": 1024,
+        "base_ch": 64,
+        "alpha": 0.8977178939168131,
+        "dropout": 0.1857146475378283
+      }
+    },
+    {
+      "number": 19,
+      "state": "PRUNED",
+      "value": 0.8178861290216446,
+      "params": {
+        "lr": 0.00015543085969349485,
+        "batch_size": 32,
+        "latent_dim": 1024,
+        "base_ch": 64,
+        "alpha": 0.8629936670386164,
+        "dropout": 0.16753414168485975
+      }
+    }
+  ],
+  "epochs_per_trial": 6,
+  "subset_train": 1500,
+  "objective": "mean val (L1 + (1 - SSIM))"
+}

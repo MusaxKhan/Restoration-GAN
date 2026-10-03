@@ -19,3 +19,4 @@ Open VSCode.bat
 mlflow.db
 mlartifacts/
 runs/
+colab_results/

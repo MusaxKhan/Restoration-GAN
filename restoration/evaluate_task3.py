@@ -17,7 +17,7 @@ from . import common as cm  # noqa: E402
 from .data import corruptions as C  # noqa: E402
 from .data.pets import PetsDataset  # noqa: E402
 from .eval_utils import failure_indices, representative_indices  # noqa: E402
-from .models.autoencoder import DenoisingAE  # noqa: E402
+from .train_ae import build_ae  # noqa: E402
 from .models.classifier import CorruptionClassifier  # noqa: E402
 from .models.moe import SoftMoE  # noqa: E402
 from .train_moe import collect_weights  # noqa: E402
@@ -29,7 +29,7 @@ def load_moe(ckpt_path, device) -> SoftMoE:
     ck = torch.load(ckpt_path, map_location=device)
     g = ck["gate_cfg"]
     gate = CorruptionClassifier(g["base_ch"], g["depth"], g["dropout"])
-    experts = [DenoisingAE(c["base_ch"], c["latent_dim"], c.get("dropout", 0.0)) for c in ck["expert_cfgs"]]
+    experts = [build_ae(c) for c in ck["expert_cfgs"]]
     moe = SoftMoE(gate, experts, ck["cfg"]["tau"])
     moe.load_state_dict(ck["model"])
     return moe.to(device).eval()

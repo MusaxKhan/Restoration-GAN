@@ -20,12 +20,13 @@ from .models.autoencoder import DenoisingAE
 
 TASK_TYPES = {"universal": None, "salt": [C.SALT], "blur": [C.BLUR], "occ": [C.OCC]}
 
-DEFAULTS = dict(task="universal", base_ch=32, latent_dim=512, dropout=0.1, lr=1e-3, batch_size=64,
+DEFAULTS = dict(task="universal", base_ch=32, latent_dim=512, latent_type="dense", latent_ch=16, dropout=0.1, lr=1e-3, batch_size=64,
                 alpha=0.8, weight_decay=1e-5, epochs=30, subset_train=None, subset_val=None, workers=None)
 
 
 def build_ae(cfg: dict) -> DenoisingAE:
-    return DenoisingAE(cfg["base_ch"], cfg["latent_dim"], cfg.get("dropout", 0.0))
+    return DenoisingAE(cfg["base_ch"], cfg.get("latent_dim", 512), cfg.get("dropout", 0.0),
+                       cfg.get("latent_type", "dense"), cfg.get("latent_ch", 16))
 
 
 def train_ae(cfg: dict, out_dir: str | None = None, trial=None, mlflow_experiment: str | None = None,
