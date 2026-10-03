@@ -133,6 +133,9 @@ def mlflow_setup(experiment: str):
     import mlflow
 
     mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db"))
+    root = os.environ.get("MLFLOW_ARTIFACT_ROOT")  # keep artifacts next to the db (e.g. on Google Drive)
+    if root and mlflow.get_experiment_by_name(experiment) is None:
+        mlflow.create_experiment(experiment, artifact_location=f"{root}/{experiment}")
     mlflow.set_experiment(experiment)
     return mlflow
 
