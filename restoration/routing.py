@@ -24,5 +24,5 @@ class HardRouter(nn.Module):
         for k, expert in enumerate(self.experts):
             m = route == (k + 1)
             if m.any():
-                out[m] = expert(x[m])
+                out[m] = expert(x[m]).to(out.dtype)  # experts may run in fp16 under autocast
         return out, route, probs
