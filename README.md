@@ -1,6 +1,6 @@
 # Restoration Studio - GenAI Assignment 1
 
-Demo video: https://youtu.be/zGb_QqoBSlw  |  Report: `report/main.pdf`
+Demo video: https://youtu.be/vkmMOKHuCu4  |  Report: `report/main.pdf`
 
 Four generative-AI systems behind **one browser application**:
 
