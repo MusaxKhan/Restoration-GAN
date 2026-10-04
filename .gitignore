@@ -27,3 +27,4 @@ report/*.blg
 report/*.aux
 report/*.out
 report/*.bbl
+demo/
