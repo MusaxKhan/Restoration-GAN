@@ -113,10 +113,17 @@ def write_srt(path, starts, dur):
 
 
 def tts(text, wav, voice_dir=None):
-    if voice_dir and (Path(voice_dir) / Path(wav).name).exists():  # pre-recorded / cloned voice for this scene
-        shutil.copy(Path(voice_dir) / Path(wav).name, wav)
-        with wave.open(str(wav)) as w:
-            return w.getnframes() / w.getframerate()
+    if voice_dir:  # your own recording for this scene: <scene>.wav / .m4a / .mp3 / .mp4 ... (anything ffmpeg reads)
+        src = next((f for f in sorted(Path(voice_dir).glob(Path(wav).stem + ".*"))
+                    if f.suffix.lower() not in (".txt", ".md")), None)
+        if src:
+            # trim leading/trailing silence, mono 22.05 kHz wav
+            subprocess.run([FFMPEG, "-y", "-v", "error", "-i", str(src), "-af",
+                            "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.1,"
+                            "areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.1,areverse",
+                            "-ac", "1", "-ar", "22050", str(wav)], check=True)
+            with wave.open(str(wav)) as w:
+                return w.getnframes() / w.getframerate()
     txt = Path(wav).with_suffix(".txt")
     txt.write_text(text, encoding="utf-8")
     ps = ("Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
