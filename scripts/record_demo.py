@@ -39,8 +39,8 @@ NARRATION = {
                "three, although its Peak Signal-to-Noise Ratio is slightly lower than the noisy input, which the report discusses "
                "openly. Hard routing gives twenty four point seven nine decibels, with oracle and predicted routing "
                "identical, and the soft mixture of experts is best at twenty six point two eight decibels.",
-    "universal": "Task one, the universal denoising autoencoder. I pick a sample image, add salt and pepper noise at "
-                 "high strength, and press restore. The app shows the corrupted input, the restored output, an error "
+    "universal": "Task one, the universal denoising autoencoder. I upload an image from my computer, add salt and pepper "
+                 "noise at high strength, which is generated at runtime, and press restore. The app shows the corrupted input, the restored output, an error "
                  "map, and the Peak Signal-to-Noise Ratio and Structural Similarity against the clean image, plus the inference time.",
     "universal2": "Now the same single model on Gaussian blur at medium strength, with a different image. One model "
                   "handles every corruption type, which is why its improvement is modest. The specialists in the "
@@ -60,6 +60,10 @@ NARRATION = {
     "sketch2": "Changing the style to style three gives a different artist's rendering of the same face.",
     "sketch3": "And style one, on another face. The same generator serves all three styles, conditioned on a style "
                "label. On the test split the sketches reach an L one error of zero point one zero two.",
+    "download": "The generated sketch can be saved with the Download result button. The file is downloaded to my "
+                "computer, as you can see here.",
+    "download": "The generated sketch can be saved with the Download result button. The file is downloaded to my "
+                "computer, as you can see here.",
     "mlflow": "Finally, MLflow tracking, started from the same Compose file with the tracking profile. Every "
               "training run and Optuna trial for the four tasks is recorded with its parameters and metrics.",
     "mlflow2": "Opening an experiment shows its runs with the logged metrics, so the reported results can be traced "
@@ -192,7 +196,8 @@ def main():
         def run(corruption, level, button, wait_text, face=False, style=None, idx=1):
             sel = "img[alt^='face_']" if face else "img[alt^='pet_']"
             page.wait_for_selector(sel, timeout=15000)
-            page.locator(sel).nth(idx).click()
+            if idx is not None:
+                page.locator(sel).nth(idx).click()
             page.wait_for_timeout(700)
             if corruption:
                 page.get_by_text(corruption, exact=True).click()
@@ -237,7 +242,10 @@ def main():
 
         end = begin("universal")
         open_page("universal")
-        run("Salt-and-pepper", "High", "Restore image", "Inference time")
+        page.wait_for_selector("input[type=file]", state="attached")
+        page.set_input_files("input[type=file]", str(ROOT / "backend" / "samples" / "pet_03.jpg"))  # real file upload
+        page.wait_for_timeout(1200)
+        run("Salt-and-pepper", "High", "Restore image", "Inference time", idx=None)
         scroll_slowly(end)
         hold(end)
         end = begin("universal2")
@@ -280,6 +288,18 @@ def main():
         page.locator("img[alt^='face_']").nth(5).click()
         page.get_by_text("Style 1", exact=True).click()
         page.get_by_role("button", name="Generate sketch").click()
+        hold(end)
+
+        end = begin("download")
+        with page.expect_download() as dl:
+            page.get_by_text("Download result").click()
+        d = dl.value
+        saved = work / d.suggested_filename
+        d.save_as(str(saved))
+        page.evaluate("""m => { const t = document.createElement('div'); t.textContent = m;
+            t.style.cssText = 'position:fixed;top:24px;right:24px;z-index:9999;background:#16a34a;color:#fff;'
+            + 'padding:16px 22px;border-radius:10px;font:600 20px Segoe UI,sans-serif;'; document.body.appendChild(t); }""",
+                      f"Downloaded: {d.suggested_filename} ({saved.stat().st_size // 1024} KB)")
         hold(end)
 
         end = begin("mlflow")
