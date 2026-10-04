@@ -21,27 +21,27 @@ FFMPEG = shutil.which("ffmpeg") or r"C:\ffmpeg-8.1.2-essentials_build\bin\ffmpeg
 DOCKER = r"E:\Docker\resources\bin\docker.exe"
 
 NARRATION = {
-    "intro": "Hello. This is the demo of my Generative A I assignment one: image restoration with autoencoders, a "
+    "intro": "Hello. This is the demo of my Generative Artificial Intelligence assignment one: image restoration with autoencoders, a "
              "mixture of experts, and a style conditioned face to sketch generator. Everything runs as one Docker "
              "Compose stack, a FastAPI backend serving seven ONNX models and a React frontend that I first designed "
              "in Google Stitch.",
     "pipeline": "The project has four tasks on one web application. Task one is a universal denoising autoencoder "
-                "trained with an L one plus S S I M loss. Task two adds a classifier that recognises the corruption "
+                "trained with an L one plus Structural Similarity loss. Task two adds a classifier that recognises the corruption "
                 "and routes the image to one of three specialist autoencoders. Task three replaces the hard decision "
                 "with a soft mixture of experts, whose gate is initialised from the classifier and fine tuned jointly "
                 "with a balance loss. Task four is a style conditioned pix two pix generator that turns a face "
-                "photograph into a pencil sketch. Every task was tuned with Optuna and tracked in M L Flow.",
+                "photograph into a pencil sketch. Every task was tuned with Optuna and tracked in MLflow.",
     "docker": "The whole system starts with one command, docker compose up dash dash build. Here are the running "
               "containers: the backend with all seven models loaded, and the nginx frontend on port three thousand. "
               "The models themselves are downloaded from a GitHub release by a small script.",
     "results": "These are the measured test results. The classifier reaches ninety nine point six percent accuracy. "
-               "The universal autoencoder improves S S I M from zero point six seven one to zero point seven two "
-               "three, although its P S N R is slightly lower than the noisy input, which the report discusses "
+               "The universal autoencoder improves the Structural Similarity from zero point six seven one to zero point seven two "
+               "three, although its Peak Signal-to-Noise Ratio is slightly lower than the noisy input, which the report discusses "
                "openly. Hard routing gives twenty four point seven nine decibels, with oracle and predicted routing "
                "identical, and the soft mixture of experts is best at twenty six point two eight decibels.",
     "universal": "Task one, the universal denoising autoencoder. I pick a sample image, add salt and pepper noise at "
                  "high strength, and press restore. The app shows the corrupted input, the restored output, an error "
-                 "map, and the P S N R and S S I M against the clean image, plus the inference time.",
+                 "map, and the Peak Signal-to-Noise Ratio and Structural Similarity against the clean image, plus the inference time.",
     "universal2": "Now the same single model on Gaussian blur at medium strength, with a different image. One model "
                   "handles every corruption type, which is why its improvement is modest. The specialists in the "
                   "next tasks do better.",
@@ -55,12 +55,12 @@ NARRATION = {
             "weight, and the output blends the branches. This model gave the best test results.",
     "soft2": "With rectangular occlusion the weights shift towards the occlusion expert. The weights always sum to "
              "one, and the balance loss during training stops the gate from collapsing onto a single expert.",
-    "sketch": "Task four, the style conditioned conditional G A N. I choose a face photo and a sketch style, press "
+    "sketch": "Task four, the style conditioned conditional Generative Adversarial Network. I choose a face photo and a sketch style, press "
               "generate, and the generator produces a pencil sketch in that style. The result can be downloaded.",
     "sketch2": "Changing the style to style three gives a different artist's rendering of the same face.",
     "sketch3": "And style one, on another face. The same generator serves all three styles, conditioned on a style "
                "label. On the test split the sketches reach an L one error of zero point one zero two.",
-    "mlflow": "Finally, M L Flow tracking, started from the same Compose file with the tracking profile. Every "
+    "mlflow": "Finally, MLflow tracking, started from the same Compose file with the tracking profile. Every "
               "training run and Optuna trial for the four tasks is recorded with its parameters and metrics.",
     "mlflow2": "Opening an experiment shows its runs with the logged metrics, so the reported results can be traced "
                "back to the exact training run.",
