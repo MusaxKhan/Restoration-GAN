@@ -72,7 +72,51 @@ NARRATION = {
 }
 
 
-def tts(text, wav):
+def srt_time(t):
+    ms = int(round(t * 1000))
+    return f"{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d},{ms % 1000:03d}"
+
+
+CAPTION_FIXES = [  # spoken spelling -> written form, so captions read normally
+    ("Generative A I", "Generative AI"), ("S S I M", "SSIM"), ("P S N R", "PSNR"), ("M L Flow", "MLflow"),
+    ("L one plus S S I M", "L1 + SSIM"), ("L one", "L1"), ("G A N", "GAN"), ("pix two pix", "pix2pix"),
+    ("dash dash", "--"), ("ninety nine point six percent", "99.6%"), ("zero point six seven one", "0.671"),
+    ("zero point seven two three", "0.723"), ("twenty four point seven nine", "24.79"),
+    ("twenty six point two eight", "26.28"), ("zero point one zero two", "0.102"),
+    ("four times ten to the minus six", "4e-6"), ("three thousand", "3000"), ("Task one", "Task 1"),
+    ("Task two", "Task 2"), ("Task three", "Task 3"), ("Task four", "Task 4"), ("style three", "style 3"),
+    ("style one", "style 1"), ("seven ONNX", "7 ONNX"), ("four tasks", "4 tasks"), ("three specialist", "3 specialist"),
+    ("decibels", "dB"),
+]
+
+
+def caption_text(s):
+    for a, b in CAPTION_FIXES:
+        s = s.replace(a, b)
+    return s
+
+
+def write_srt(path, starts, dur):
+    """One caption per sentence, timed in proportion to its length inside the narration clip of its scene."""
+    import re
+    n, lines = 1, []
+    for k, text in NARRATION.items():
+        sents = [s.strip() for s in re.split(r"(?<=[.!?:])\s+", text) if s.strip()]
+        total = sum(len(s) for s in sents)
+        t = starts[k]
+        for s in sents:
+            d = dur[k] * len(s) / total
+            lines.append(f"{n}\n{srt_time(t)} --> {srt_time(t + d)}\n{caption_text(s)}\n")
+            n += 1
+            t += d
+    Path(path).write_text("\n".join(lines), encoding="utf-8")
+
+
+def tts(text, wav, voice_dir=None):
+    if voice_dir and (Path(voice_dir) / Path(wav).name).exists():  # pre-recorded / cloned voice for this scene
+        shutil.copy(Path(voice_dir) / Path(wav).name, wav)
+        with wave.open(str(wav)) as w:
+            return w.getnframes() / w.getframerate()
     txt = Path(wav).with_suffix(".txt")
     txt.write_text(text, encoding="utf-8")
     ps = ("Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
@@ -94,6 +138,8 @@ def main():
     ap.add_argument("--url", default="http://localhost:3000")
     ap.add_argument("--mlflow", default="http://localhost:5000")
     ap.add_argument("--out", default="demo/demo.mp4")
+    ap.add_argument("--voice-dir", default=None, help="folder with <scene>.wav files to use instead of the TTS voice")
+    ap.add_argument("--no-captions", action="store_true")
     a = ap.parse_args()
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -101,7 +147,7 @@ def main():
 
     dur = {}
     for k, t in NARRATION.items():
-        dur[k] = tts(t, work / f"{k}.wav")
+        dur[k] = tts(t, work / f"{k}.wav", a.voice_dir)
         print(k, round(dur[k], 1), "s")
     ps_out = subprocess.run([DOCKER, "compose", "--profile", "tracking", "ps", "--format",
                              "table {{.Name}}\t{{.Service}}\t{{.Status}}\t{{.Ports}}"], capture_output=True, text=True,
@@ -258,9 +304,15 @@ def main():
     filt = "".join(f"[{i + 1}:a]adelay={int(starts[k] * 1000)}|{int(starts[k] * 1000)}[a{i}];"
                    for i, k in enumerate(NARRATION))
     filt += "".join(f"[a{i}]" for i in range(len(NARRATION))) + f"amix=inputs={len(NARRATION)}:normalize=0[aout]"
-    cmd += ["-filter_complex", filt, "-map", "0:v", "-map", "[aout]", "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-shortest", str(out)]
-    subprocess.run(cmd, check=True)
+    srt = out.with_suffix(".srt")
+    write_srt(srt, starts, dur)
+    vf = []
+    if not a.no_captions:  # burn the captions into the picture (also kept as a separate .srt for YouTube)
+        shutil.copy(srt, work / "caps.srt")
+        vf = ["-vf", "subtitles=caps.srt:force_style='FontSize=18,Outline=2,MarginV=18'"]
+    cmd += ["-filter_complex", filt, "-map", "0:v", "-map", "[aout]", *vf, "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-shortest", str(out.resolve())]
+    subprocess.run(cmd, check=True, cwd=work)
     print("saved", out, "narration ~", round(sum(dur.values()) / 60, 1), "min")
 
 
