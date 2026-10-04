@@ -96,7 +96,7 @@ All numbers in this section are measured on the \emph{official test sets} (Pet t
 
 \input{generated/t3_test}
 
-\textbf{Restoration.} Table~\ref{tab:t3_test} reports 26.28\,dB / 0.814 SSIM overall, which is higher than hard routing (24.79\,dB / 0.753), the universal autoencoder (21.23\,dB / 0.723) and the input (22.33\,dB / 0.671); the corresponding model built on the dense bottleneck reached 24.40\,dB / 0.723. In particular, the soft blend closes the gap on blur: SSIM 0.827 is \emph{above} the input's 0.814 and PSNR is 26.4\,dB for blur (29.1\,dB at the lowest severity, versus 22.1 for the specialist alone), because the gate mixes the input with the expert's output instead of replacing it. Clean images stay at 49.8\,dB, and salt-and-pepper (24.1\,dB) and occlusion (20.6\,dB, SSIM 0.77) improve on Task~2 as well.
+\textbf{Restoration.} Table~\ref{tab:t3_test} reports 26.28\,dB / 0.814 SSIM overall, which is higher than hard routing (24.79\,dB / 0.753), the universal autoencoder (21.23\,dB / 0.723) and the input (22.33\,dB / 0.671); the corresponding model built on the dense bottleneck reached 24.40\,dB / 0.723. In particular, the soft blend closes the gap on blur: SSIM 0.827 is \emph{above} the input's 0.814 and PSNR is 26.4\,dB for blur (29.1\,dB at the lowest severity, versus 22.1 for the specialist alone), because the gate mixes the input with the expert's output instead of replacing it. Clean images stay at 49.8\,dB, and salt-and-pepper (24.0\,dB) and occlusion (20.6\,dB, SSIM 0.77) improve on Task~2 as well.
 
 \input{generated/t3_weights}
 
