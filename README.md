@@ -102,7 +102,3 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db     # parameters, curves, chec
 python -m pytest tests -q                              # data pipeline, models, GAN
 MODEL_DIR=models python -m pytest backend/tests -q     # API (model tests skip when ONNX files are absent)
 ```
-
-## AI-use statement
-AI assistants (Claude) were used for code drafting, debugging, interface scaffolding and documentation; every component
-was tested (unit tests, ONNX consistency checks, end-to-end runs). Details are in the technical report's AI-use appendix.
