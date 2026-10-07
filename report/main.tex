@@ -72,18 +72,25 @@ FS2K contains 1{,}058 official training pairs and 1{,}046 official test pairs wi
 Models are implemented in PyTorch. The restoration networks use AdamW \cite{loshchilov2019adamw} with a one-cycle learning-rate schedule \cite{smith2019onecycle}, gradient clipping at 5 and mixed precision on the GPU; GANs use Adam \cite{kingma2015adam} with $\beta=(0.5,0.999)$. Batch normalisation \cite{ioffe2015bn} is used in the convolutional blocks. The validation \emph{objective} used by every Optuna study is independent of any tuned loss weight: for restoration it is the mean validation $L_1+(1-\mathrm{SSIM})$ (lower is better); for the classifier $1-$macro-F1; for the GAN the validation $L_1+(1-\mathrm{SSIM})$ of generated against ground-truth sketches. SSIM is our own differentiable implementation (11$\times$11 Gaussian window, $\sigma=1.5$), unit-tested against scikit-image. PSNR is reported with a 50\,dB cap so that exact identity does not yield infinite values. All experiments are logged to MLflow (parameters, per-epoch curves, final checkpoints, sample images), and Optuna studies are stored in SQLite so that interrupted runs can resume.
 
 \subsection{Task 1: universal denoising autoencoder}
-\textbf{Architecture.} The encoder has four stride-2 convolutional stages ($128\to8$ pixels) whose channel count doubles from $c$ to $8c$, each stage being a $4\times4$ stride-2 convolution followed by a $3\times3$ convolution (batch norm, LeakyReLU). The $8\times8\times8c$ feature map is flattened and projected by a linear layer to a latent vector of dimension $d$ (dropout $p$), i.e.\ a compression of $49{,}152/d$ times; a linear layer re-expands it and four transposed-convolution stages and a final $3\times3$ convolution with a sigmoid reconstruct the $128\times128$ RGB image. There are no skip connections. The network is never told the corruption type.
+\textbf{Architecture.} The encoder has four stride-2 convolutional stages ($128\to8$ pixels) whose channel count doubles from $c$ to $8c$, each stage being a $4\times4$ stride-2 convolution followed by a $3\times3$ convolution (batch norm, LeakyReLU). The $8\times8\times8c$ feature map is flattened and projected by a linear layer to a latent vector of dimension $d$ (dropout $p$), i.e.\ a compression of $49{,}152/d$ times; a linear layer re-expands it and four transposed-convolution stages and a final $3\times3$ convolution with a sigmoid reconstruct the $128\times128$ RGB image. There are no skip connections. The network is never told the corruption type. Fig.~\ref{fig:arch_ae} shows the layer dimensions of the selected configuration; this model has 2{,}401{,}347 learnable parameters (Table~\ref{tab:params}).
 
 \textbf{Loss.} $\mathcal{L}=\alpha L_1(x,\hat{x})+(1-\alpha)(1-\mathrm{SSIM}(x,\hat{x}))$ with $x$ the clean target and $\hat{x}=D(E(\tilde{x}))$ the reconstruction of the corrupted input $\tilde{x}$.
 
 \textbf{Optuna.} Learning rate, batch size, latent dimension $d$ (bottleneck), number of encoder channels $c$, dropout and $\alpha$ were searched (Table~\ref{tab:optuna_ae_universal_space}); each trial trains for a reduced budget on a subset of the training split, with median pruning.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{arch_ae.png}
+\caption{Architecture of the universal denoising autoencoder (Task~1) and of each Task~2 specialist for the selected configuration ($c=32$, spatial latent $8{\times}8{\times}32$): four stride-2 encoder stages, a $1{\times}1$-convolutional bottleneck of 2{,}048 numbers, four transposed-convolution decoder stages, and no skip connections.}
+\label{fig:arch_ae}
+\end{figure*}
+
 \subsection{Task 2: classifier and hard-routed specialists}
 \textbf{Classifier.} A plain CNN with $d_c$ conv blocks (two $3\times3$ convolutions each, channels $b,2b,\dots$ capped at $8b$, max pooling), global average pooling, dropout and a 4-way linear head, trained with multiclass cross-entropy on \emph{exactly class-balanced} batches (a custom batch sampler draws $B/4$ samples of every condition; labels come from the run-time pipeline).
 
-\textbf{Specialists.} Three autoencoders of the Task~1 architecture are trained independently, each only on one corruption type (salt-and-pepper, blur, occlusion) with the same clean target and the $L_1$+SSIM loss. As allowed, one shared Optuna search selects a common architecture (learning rate, bottleneck, channels, batch size, $\alpha$): every trial trains the three specialists briefly and the objective is their mean validation objective.
+\textbf{Specialists.} Three autoencoders of the Task~1 architecture are trained independently, each only on one corruption type (salt-and-pepper, blur, occlusion) with the same clean target and the $L_1$+SSIM loss. As allowed, one shared Optuna search selects a common architecture (learning rate, bottleneck, channels, batch size, $\alpha$): every trial trains the three specialists briefly and the objective is their mean validation objective. The selected architecture is the one of Fig.~\ref{fig:arch_ae}, so each specialist has 2{,}401{,}347 parameters and the classifier (five conv blocks, base 48 channels) 5{,}294{,}932 (Table~\ref{tab:params}).
 
-\textbf{Inference.} With $r=\arg\max_k p_k$, the output is the identity for $r=$ clean (bypass, no expert is run) and $A_r(\tilde{x})$ otherwise. We evaluate two modes: \emph{oracle routing} (true label from the manifest) and \emph{predicted routing} (classifier decision).
+\textbf{Inference.} With $r=\arg\max_k p_k$, the output is the identity for $r=$ clean (bypass, no expert is run) and $A_r(\tilde{x})$ otherwise. We evaluate two modes: \emph{oracle routing} (true label from the manifest) and \emph{predicted routing} (classifier decision). Fig.~\ref{fig:arch_routing}(a) summarises the pipeline.
 
 \subsection{Task 3: jointly trained soft mixture-of-experts}
 \label{sec:t3}
@@ -91,14 +98,30 @@ The gate is the Task~2 classifier; the experts are the three trained specialists
 \begin{equation}
 \mathcal{L}=\lambda_{1}L_{1}+\lambda_{2}(1-\mathrm{SSIM})+\lambda_{3}\,\mathrm{CE}\!\left(\tfrac{G(\tilde{x})}{\tau},y\right)+\lambda_{4}\sum_{k=0}^{3}\left(\bar{w}_k-\tfrac14\right)^2,
 \end{equation}
-with $\lambda_1=\alpha$, $\lambda_2=1-\alpha$, $\bar{w}_k$ the mean weight of branch $k$ over a class-balanced batch. The cross-entropy keeps the gate tied to the known run-time label (applied to the tempered logits so that it matches the routing weights actually used), and the squared-deviation balance term is a differentiable load-balancing regulariser in the spirit of \cite{shazeer2017moe,fedus2022switch}. Optuna tunes the joint learning rate, $\tau$, $\lambda_3$, $\lambda_4$ and $\alpha$; a trial is pruned when its intermediate objective is poor \emph{or} when routing collapses (a branch with mean validation weight below 0.02 or above 0.85). The complete pipeline (gate, experts, blending) is exported as one ONNX graph.
+with $\lambda_1=\alpha$, $\lambda_2=1-\alpha$, $\bar{w}_k$ the mean weight of branch $k$ over a class-balanced batch. The cross-entropy keeps the gate tied to the known run-time label (applied to the tempered logits so that it matches the routing weights actually used), and the squared-deviation balance term is a differentiable load-balancing regulariser in the spirit of \cite{shazeer2017moe,fedus2022switch}. Optuna tunes the joint learning rate, $\tau$, $\lambda_3$, $\lambda_4$ and $\alpha$; a trial is pruned when its intermediate objective is poor \emph{or} when routing collapses (a branch with mean validation weight below 0.02 or above 0.85). The complete pipeline (gate, experts, blending) is exported as one ONNX graph. Fig.~\ref{fig:arch_routing}(b) shows the architecture; the soft MoE has 12{,}498{,}973 parameters (classifier plus three specialists, Table~\ref{tab:params}).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{arch_routing.png}
+\caption{(a) Task~2 hard routing: the classifier probabilities are reduced by $\arg\max$ and select the identity bypass or one specialist. (b) Task~3 soft mixture of experts: the gate (initialised from the classifier) outputs temperature-softmax weights over the identity branch and the three experts, and the reconstruction is their weighted sum; gate and experts are trained jointly with the loss shown.}
+\label{fig:arch_routing}
+\end{figure*}
 
 \subsection{Task 4: style-conditioned face-to-sketch cGAN}
-\textbf{Generator.} A U-Net with seven stride-2 stages ($128\to1$) and a mirrored decoder with skip connections (dropout in the first three decoder stages). The style $s\in\{1,2,3\}$ is a \emph{learned embedding} of dimension $e$ that is (i) tiled over the image and concatenated to the input photograph and (ii) concatenated to the $1\times1$ bottleneck, so it influences both low-level and global features.
+\textbf{Generator.} A U-Net with seven stride-2 stages ($128\to1$) and a mirrored decoder with skip connections (dropout in the first three decoder stages). The style $s\in\{1,2,3\}$ is a \emph{learned embedding} of dimension $e$ that is (i) tiled over the image and concatenated to the input photograph and (ii) concatenated to the $1\times1$ bottleneck, so it influences both low-level and global features. The generator has 42{,}124{,}579 parameters (Table~\ref{tab:params}).
 
-\textbf{Discriminator.} A PatchGAN that receives the concatenation of photograph, (real or generated) sketch and the tiled embedding of the same style from its own learned embedding table, and outputs a $14\times14$ map of real/fake logits.
+\textbf{Discriminator.} A PatchGAN that receives the concatenation of photograph, (real or generated) sketch and the tiled embedding of the same style from its own learned embedding table, and outputs a $14\times14$ map of real/fake logits (2{,}801{,}569 parameters). Fig.~\ref{fig:arch_gan} shows both networks.
 
 \textbf{Losses.} $\mathcal{L}_D=\tfrac12[\mathrm{BCE}(D(x,y,s),1)+\mathrm{BCE}(D(x,G(x,s),s),0)]$ and $\mathcal{L}_G=\mathrm{BCE}(D(x,G(x,s),s),1)+\lambda_{L1}\lVert y-G(x,s)\rVert_1$. The discriminator real loss, discriminator fake loss, generator adversarial loss and generator $L_1$ loss are logged separately every epoch, together with validation $L_1$/PSNR/SSIM; the same six validation photographs are rendered at fixed intervals to monitor generator development. Optuna tunes the generator and discriminator learning rates, batch size, base channel count, dropout, style-embedding dimension and $\lambda_{L1}$ on shortened runs; the selected configuration is then retrained for the full schedule.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.92\textwidth]{arch_gan.png}
+\caption{Task~4 architecture: U-Net generator with the learned style embedding injected at the input and at the bottleneck (top), and PatchGAN discriminator that receives photograph, sketch and the tiled style embedding (bottom).}
+\label{fig:arch_gan}
+\end{figure*}
+
+\input{generated/params}
 
 \section{Application and Deployment}
 \label{sec:app}

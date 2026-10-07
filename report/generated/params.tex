@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{Learnable parameters of the selected models (counted from the final configurations).}
+\label{tab:params}
+\footnotesize
+\begin{tabular}{p{3.0cm}p{3.6cm}r}
+\toprule
+Model & Configuration & Parameters \\
+\midrule
+Task 1 universal autoencoder & $c=32$, spatial latent $8{\times}8{\times}32$ (2{,}048 numbers) & 2{,}401{,}347 \\
+Task 2 specialist autoencoder (each of 3) & $c=32$, spatial latent $8{\times}8{\times}32$ & 2{,}401{,}347 \\
+Task 2 classifier (= Task 3 gate) & 5 conv blocks, base 48 channels & 5{,}294{,}932 \\
+Task 3 soft MoE (gate + 3 experts) & classifier + 3 specialists, $\tau$ fixed & 12{,}498{,}973 \\
+Task 4 generator (U-Net) & base 64 channels, style embedding 32 & 42{,}124{,}579 \\
+Task 4 discriminator (PatchGAN) & base 64 channels, style embedding 32 & 2{,}801{,}569 \\
+\bottomrule
+\end{tabular}
+\end{table}
